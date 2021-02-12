@@ -24,7 +24,7 @@ services:
     # False will limit output to only mention that a query to the Verisure API is made
     environment:
       - "VERISURE_DEBUG=true"
-      - "MQTT_BROKER_HOST=sensors_mqtt_1"
+      - "MQTT_BROKER_HOST=house-sensors_mqtt_1"
       - "MQTT_BROKER_PORT=1883"
       - "MQTT_ROOT_TOPIC=sensors/"
       - "VERISURE_USERNAME=${VERISURE_USERNAME}"
@@ -42,8 +42,18 @@ services:
     image: influxdb:1.7.8-alpine
     volumes:
       - influxdb-data:/var/lib/influxdb
+      - ${PWD}/backup:/backup
     ports:
       - 8086:8086
+
+  influx_worker:
+    image: influxdb:1.7.8-alpine
+    entrypoint: /bin/bash
+    stdin_open: true # docker run -i
+    tty: true # docker run -t
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+      - ${PWD}/workdir:/workdir
 
   chronograf:
     image: chronograf:1.7.8
