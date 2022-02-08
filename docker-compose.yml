@@ -10,6 +10,7 @@ networks:
 services:
   node-red:
     image: nodered/node-red:latest-12
+    restart: always
     volumes:
       - node-red-data:/data
     ports:
@@ -32,6 +33,7 @@ services:
 
   mqtt:
     image: eclipse-mosquitto:2
+    restart: always
     volumes:
       - ${PWD}/mosquitto.conf:/mosquitto/config/mosquitto.conf
     ports:
@@ -40,6 +42,7 @@ services:
 
   influxdb:
     image: influxdb:1.7.8-alpine
+    restart: always
     volumes:
       - influxdb-data:/var/lib/influxdb
       - ${PWD}/backup:/backup
@@ -57,6 +60,7 @@ services:
 
   chronograf:
     image: chronograf:1.7.8
+    restart: always
     depends_on:
       - influxdb
     command: [chronograf, --influxdb-url, "http://influxdb:8086"]

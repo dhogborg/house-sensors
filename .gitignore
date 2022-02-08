@@ -1,2 +1,5 @@
 .vscode
 .env
+backup
+node_modules
+iCloud
