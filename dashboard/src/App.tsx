@@ -1,44 +1,46 @@
-import React, { useEffect } from "react";
 import { Row, Col } from "antd";
 
 import "./App.less";
+
 import {
   IndoorTemperature,
   OutdoorTemperature,
   PowerCombined,
+  PowerUse,
+  PowerHeatPump,
 } from "./panels/InfluxQL";
 
+import { PriceGraph } from "./panels/Tibber";
+
 function App() {
-  const gutter = 16;
+  const gutter = 0;
   return (
     <div className="App">
       <div id="Grid">
         <Row gutter={gutter}>
           <Col span={12}>
-            <OutdoorTemperature />
+            <OutdoorTemperature height={250} />
           </Col>
           <Col span={12}>
-            <IndoorTemperature />
+            <IndoorTemperature height={250} />
           </Col>
         </Row>
         <Row gutter={gutter}>
-          <Col span={4}>
-            <PowerCombined />
+          <Col span={6}>
+            <PowerCombined height={225} />
           </Col>
-          <Col span={4}>column-12</Col>
-          <Col span={4}>column-12</Col>
-          <Col span={12}>column-12</Col>
+          <Col span={6}>
+            <PowerHeatPump height={225} />
+          </Col>
+          <Col span={12}>
+            <PriceGraph height={225} />
+          </Col>
         </Row>
+
         <Row gutter={gutter}>
-          <Col span={8}>column-8</Col>
-          <Col span={8}>column-8</Col>
-          <Col span={8}>column-8</Col>
-        </Row>
-        <Row gutter={gutter}>
-          <Col span={6}>column-6</Col>
-          <Col span={6}>column-6</Col>
-          <Col span={6}>column-6</Col>
-          <Col span={6}>column-6</Col>
+          <Col span={24}>
+            <PowerUse height={250} />
+          </Col>
         </Row>
       </div>
     </div>
