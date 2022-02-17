@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import * as influxdb from "@lib/influx";
+import { formatNumber } from "@lib/helpers";
 
 import {
   Area,
@@ -17,9 +18,9 @@ const time = "now() - 24h";
 const theme = "dark";
 
 type DataPoint = {
-  [key: string]: string | number;
   category: string;
   time: string;
+  value: number;
 };
 
 export function OutdoorTemperature(props: { height: number }) {
@@ -58,6 +59,11 @@ export function OutdoorTemperature(props: { height: number }) {
     setState({ data });
   };
 
+  let current = "-";
+  if (state.data.length > 0) {
+    current = formatNumber(state.data[state.data.length - 1].value, "°");
+  }
+
   const config: AreaConfig = {
     data: state.data,
     xField: "time",
@@ -77,12 +83,16 @@ export function OutdoorTemperature(props: { height: number }) {
       };
     },
 
+    tooltip: {
+      formatter: (datum) => {
+        return { name: datum.category, value: formatNumber(datum.value, "°") };
+      },
+    },
+
     annotations: [
       {
         type: "text",
-        content: `${
-          state.data.length > 0 ? state.data[state.data.length - 1].value : "-"
-        }°`,
+        content: current,
 
         position: (xScale, yScale) => {
           return [`50%`, `50%`];
@@ -175,9 +185,18 @@ export function IndoorTemperature(props: { height: number }) {
     theme,
     height: props.height,
 
-    color: ["#be3d5e", "#30b673", "#4e5cbc"],
+    color: ["#30b673", "#be3d5e", "#4e5cbc"],
     yAxis: {
       min: 15,
+    },
+
+    tooltip: {
+      formatter: (datum) => {
+        return {
+          name: datum.category,
+          value: formatNumber(datum.value, "°", { precision: 1 }),
+        };
+      },
     },
 
     xAxis: {
@@ -248,10 +267,9 @@ export function PowerCombined(props: { height: number }) {
         formatter: (datum, data) => {
           const watts = Number(datum!.percent * max);
           if (watts > 1000) {
-            return `${(watts / 1000).toFixed(2)} kW`;
+            return formatNumber(watts / 1000, " kW", { precision: 2 });
           }
-
-          return `${watts.toFixed(0)} W`;
+          return formatNumber(watts, " W", { precision: 0 });
         },
       },
       title: {
@@ -367,22 +385,6 @@ export function PowerUse(props: { height: number }) {
   }, []);
 
   const load = async () => {
-    const e = await influxdb.query({
-      db: "energy",
-      query: `SELECT mean("power") as "Consumption" FROM "energy"."autogen"."electricity" WHERE time > ${time} AND "phase"='combined' GROUP BY time(1h) FILL(null)`,
-    });
-    const d1 = e.results[0].series.reduce<DataPoint[]>((data, series) => {
-      const values = series.values.map((value) => {
-        return {
-          category: series.name,
-          time: value[0],
-          value: Math.round(value[1]) / 1000,
-        };
-      });
-
-      return data.concat(values);
-    }, []);
-
     const hp = await influxdb.query({
       db: "energy",
       query: `SELECT mean("power") as "Heating" FROM "energy"."autogen"."heating" WHERE time > ${time} AND "type"='heatpump' GROUP BY time(1h) FILL(null)`,
@@ -391,9 +393,27 @@ export function PowerUse(props: { height: number }) {
     const d2 = hp.results[0].series.reduce<DataPoint[]>((data, series) => {
       const values = series.values.map((value) => {
         return {
-          category: series.name,
+          category: "Värmepump",
           time: value[0],
           value: Math.round(value[1]) / 1000,
+        };
+      });
+
+      return data.concat(values);
+    }, []);
+
+    const e = await influxdb.query({
+      db: "energy",
+      query: `SELECT mean("power") as "Consumption" FROM "energy"."autogen"."electricity" WHERE time > ${time} AND "phase"='combined' GROUP BY time(1h) FILL(null)`,
+    });
+    const d1 = e.results[0].series.reduce<DataPoint[]>((data, series) => {
+      const values = series.values.map((value, i) => {
+        let v = Math.round(value[1]) / 1000;
+        v = v - d2[i].value;
+        return {
+          category: "Övrigt",
+          time: value[0],
+          value: v,
         };
       });
 
@@ -420,6 +440,15 @@ export function PowerUse(props: { height: number }) {
     legend: {
       layout: "horizontal",
       position: "top",
+    },
+
+    tooltip: {
+      formatter: (datum) => {
+        return {
+          name: datum.category,
+          value: formatNumber(datum.value, " kWh"),
+        };
+      },
     },
 
     xAxis: {
