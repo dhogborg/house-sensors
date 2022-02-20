@@ -1,72 +1,80 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react'
 
-import { Column, ColumnConfig } from "@ant-design/charts";
+import { Column, ColumnConfig } from '@ant-design/charts'
 
-import * as tibber from "@lib/tibber";
-import { formatNumber } from "@lib/helpers";
+import * as tibber from '@lib/slices/tibber'
+import { formatNumber } from '@lib/helpers'
+import { useAppDispatch, useAppSelector } from '@lib/hooks'
 
 export function PriceGraph(props: { height: number }) {
-  const [state, setState] = useState<{ current?: number; priceData: any[] }>({
-    priceData: [],
-  });
+  const dispatch = useAppDispatch()
+  const store = useAppSelector(tibber.selector)
+
+  // const [state, setState] = useState<{ current?: number; priceData: any[] }>({
+  //   priceData: [],
+  // })
 
   useEffect(() => {
-    load();
+    load()
     const r = setInterval(() => {
-      load();
-    }, 5 * 60 * 1000);
+      load()
+    }, 5 * 60 * 1000)
     return () => {
-      clearInterval(r);
-    };
-  }, []);
-
-  const load = async () => {
-    try {
-      const price = await tibber.getPrice();
-      const priceToday = price.today.map((node) => {
-        return {
-          category: "price",
-          time: node.startsAt,
-          price: Math.round(node.total * 100),
-        };
-      });
-      const priceTomorrow = price.tomorrow.map((node) => {
-        return {
-          category: "price",
-          time: node.startsAt,
-          price: Math.round(node.total * 100),
-        };
-      });
-
-      setState({
-        priceData: priceToday.concat(priceTomorrow, {
-          category: "current",
-          time: price.current.startsAt,
-          price: Math.round(price.current.total * 100),
-        }),
-        current: price.current.total * 100,
-      });
-    } catch (err) {
-      console.log(err);
+      clearInterval(r)
     }
-  };
+  }, [])
+
+  const load = () => {
+    dispatch(tibber.get())
+  }
+
+  const current = Math.round(100 * (store.current?.total || 0))
+  console.log({ current })
+
+  let priceData: any[] = []
+
+  priceData = priceData.concat(
+    store.today.map((node) => {
+      return {
+        ...node,
+        category: 'price',
+        price: Math.round(node.total * 100),
+      }
+    }),
+  )
+
+  priceData = priceData.concat(
+    store.tomorrow.map((node) => {
+      return {
+        ...node,
+        category: 'price',
+        price: Math.round(node.total * 100),
+      }
+    }),
+  )
+
+  priceData.push({
+    category: 'current',
+    startsAt: store.current?.startsAt,
+    price: current,
+  })
 
   const config: ColumnConfig = {
-    data: state.priceData,
+    data: priceData,
     isStack: false,
 
-    xField: "time",
-    yField: "price",
-    padding: "auto",
-    seriesField: "category",
+    xField: 'startsAt',
+    yField: 'price',
+    padding: 'auto',
+    seriesField: 'category',
     color: (datum, defaultColor) => {
-      if (datum.category === "current") {
-        return "red";
+      if (datum.category === 'current') {
+        return 'red'
       }
-      return "rgba(37, 184, 204, 1.00)";
+      return 'rgba(37, 184, 204, 1.00)'
     },
 
-    theme: "dark",
+    theme: 'dark',
     height: props.height,
 
     label: undefined,
@@ -77,23 +85,25 @@ export function PriceGraph(props: { height: number }) {
       formatter: (datum) => {
         return {
           name: datum.category,
-          value: formatNumber(datum.price, " öre", { precision: 0 }),
-        };
+          value: formatNumber(datum.price, ' öre', { precision: 0 }),
+        }
       },
     },
 
+    animation: false,
+
     annotations: [
       {
-        type: "text",
-        content: `${Math.round(state.current!)} öre/kWh`,
+        type: 'text',
+        content: `${Math.round(current)} öre`,
 
         position: (xScale, yScale) => {
-          return [`50%`, `50%`];
+          return [`50%`, `50%`]
         },
 
         style: {
-          textAlign: "center",
-          fill: "white",
+          textAlign: 'center',
+          fill: 'white',
           fontSize: 35,
         },
 
@@ -103,27 +113,27 @@ export function PriceGraph(props: { height: number }) {
           padding: 10,
           style: {
             radius: 4,
-            fill: "rgba(37, 184, 204, 0.6)",
+            fill: 'rgba(37, 184, 204, 0.6)',
           },
         },
       },
     ],
 
     xAxis: {
-      type: "time",
+      type: 'time',
       tickCount: 24,
       label: {
         formatter: (t, item, index) => {
-          let d = new Date(Number(item.id));
-          return d.getHours();
+          let d = new Date(Number(item.id))
+          return d.getHours()
         },
       },
     },
-  };
+  }
 
   return (
     <div className="panel">
       <Column {...config} />
     </div>
-  );
+  )
 }

@@ -1,6 +1,6 @@
-import { Row, Col } from "antd";
+import { Row, Col } from 'antd'
 
-import "./App.less";
+import './App.less'
 
 import {
   IndoorTemperature,
@@ -8,12 +8,12 @@ import {
   PowerCombined,
   PowerUse,
   PowerHeatPump,
-} from "./panels/InfluxQL";
+} from './panels/InfluxQL'
 
-import { PriceGraph } from "./panels/Tibber";
+import { PriceGraph } from './panels/Tibber'
 
 function App() {
-  const gutter = 0;
+  const gutter = 0
   return (
     <div className="App">
       <div id="Grid">
@@ -44,7 +44,7 @@ function App() {
         </Row>
       </div>
     </div>
-  );
+  )
 }
 
-export default App;
+export default App
