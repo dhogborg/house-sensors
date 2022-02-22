@@ -6,13 +6,9 @@ import * as tibber from '@lib/slices/tibber'
 import { formatNumber } from '@lib/helpers'
 import { useAppDispatch, useAppSelector } from '@lib/hooks'
 
-export function PriceGraph(props: { height: number }) {
+export default function PriceBars(props: { height: number }) {
   const dispatch = useAppDispatch()
   const store = useAppSelector(tibber.selector)
-
-  // const [state, setState] = useState<{ current?: number; priceData: any[] }>({
-  //   priceData: [],
-  // })
 
   useEffect(() => {
     load()

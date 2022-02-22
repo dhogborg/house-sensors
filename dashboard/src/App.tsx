@@ -2,15 +2,12 @@ import { Row, Col } from 'antd'
 
 import './App.less'
 
-import {
-  IndoorTemperature,
-  OutdoorTemperature,
-  PowerCombined,
-  PowerUse,
-  PowerHeatPump,
-} from './panels/InfluxQL'
+import IndoorTemperature from './panels/IndoorTemperatureLine'
+import OutdoorTemperature from './panels/OutdoorTemperatureLine'
+import PowerUseBars from './panels/PowerUseBars'
+import { PowerCombined, PowerHeatPump } from './panels/PowerGauges'
 
-import { PriceGraph } from './panels/Tibber'
+import PriceBars from './panels/Tibber'
 
 function App() {
   const gutter = 0
@@ -18,28 +15,28 @@ function App() {
     <div className="App">
       <div id="Grid">
         <Row gutter={gutter}>
-          <Col span={12}>
+          <Col md={12}>
             <OutdoorTemperature height={250} />
           </Col>
-          <Col span={12}>
+          <Col md={12}>
             <IndoorTemperature height={250} />
           </Col>
         </Row>
         <Row gutter={gutter}>
-          <Col span={6}>
+          <Col md={6}>
             <PowerCombined height={225} />
           </Col>
-          <Col span={6}>
+          <Col md={6}>
             <PowerHeatPump height={225} />
           </Col>
-          <Col span={12}>
-            <PriceGraph height={225} />
+          <Col md={12}>
+            <PriceBars height={225} />
           </Col>
         </Row>
 
         <Row gutter={gutter}>
-          <Col span={24}>
-            <PowerUse height={250} />
+          <Col md={24}>
+            <PowerUseBars height={250} />
           </Col>
         </Row>
       </div>
