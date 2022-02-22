@@ -5,6 +5,7 @@ import { deepEqual, formatNumber } from '@lib/helpers'
 import { useAppDispatch, useAppSelector } from '@lib/hooks'
 
 import * as influxdb from '@lib/slices/influxdb'
+import * as tibber from '@lib/slices/tibber'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
 
@@ -19,6 +20,7 @@ export default function PowerUseBars(props: { height: number }) {
     influxdb.selectQuery('totalConsumed'),
     deepEqual,
   )
+  const priceState = useAppSelector(tibber.selector)
 
   useEffect(() => {
     load()
@@ -63,6 +65,8 @@ export default function PowerUseBars(props: { height: number }) {
   })
 
   const totalSeries = totalQuery.series?.[0]
+  const total = totalSeries?.values || []
+
   // renaming total to to other since we subtract some sources from total
   const other = totalSeries?.values.map((totValue, i) => {
     let kwh = Math.round(totValue.value) / 1000
@@ -119,6 +123,56 @@ export default function PowerUseBars(props: { height: number }) {
         }
       },
     },
+
+    annotations: total.map((hour, i) => {
+      let kwh = hour.value / 1000
+      const time = hour.time
+
+      if (i == total.length - 1) {
+        kwh = (new Date().getMinutes() / 60) * kwh
+      }
+
+      let priceNode = priceState.today.filter((n) => {
+        const d1 = new Date(n.startsAt)
+        const d2 = new Date(time)
+        if (d1.getDate() !== d2.getDate()) return false
+        if (d1.getHours() !== d2.getHours()) return false
+        return true
+      })[0]
+
+      let price = '-'
+      if (priceNode) {
+        price = Number(kwh * priceNode.total).toFixed(2)
+      }
+
+      return {
+        type: 'text',
+        content: price,
+
+        position: (xScale, yScale: any) => {
+          return [
+            `${i * 4}%`,
+            `${100 - Math.round((kwh / yScale.value.max) * 100)}%`,
+          ]
+        },
+
+        style: {
+          textAlign: 'center',
+          fill: 'white',
+          fontSize: 12,
+        },
+
+        offsetY: -20,
+
+        background: {
+          padding: 5,
+          style: {
+            radius: 4,
+            fill: '#f890a1',
+          },
+        },
+      }
+    }),
 
     xAxis: {
       type: 'time',
