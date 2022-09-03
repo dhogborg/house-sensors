@@ -8,3 +8,4 @@ workdir
 build
 backup.env
 restore
+tokens.env
