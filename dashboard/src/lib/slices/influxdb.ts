@@ -200,12 +200,12 @@ export const slice = createSlice({
   },
 })
 
-const INFLUX_ENDPOINT = 'http://thirteen.lan:8086'
+const INFLUX_ENDPOINT = 'http://thirteen.lan'
 
 type FluxResponse = string
 
 async function fluxQuery(args: { query: string }): Promise<FluxResponse> {
-  const response = await handledFetch(`http://localhost:9086/api/v2/query`, {
+  const response = await handledFetch(`${INFLUX_ENDPOINT}:9086/api/v2/query`, {
     method: 'POST',
     headers: {
       Accept: 'application/csv',
@@ -236,7 +236,7 @@ async function query(args: { query: string; db: string }): Promise<Response> {
   ].join('&')
 
   const response = await handledFetch(
-    `${INFLUX_ENDPOINT}/query?pretty=true&${request}`,
+    `${INFLUX_ENDPOINT}:8086/query?pretty=true&${request}`,
   )
   return await response.json()
 }
