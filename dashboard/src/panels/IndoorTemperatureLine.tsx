@@ -71,12 +71,16 @@ export default function IndoorTemperature(props: { height: number }) {
     },
 
     xAxis: {
-      type: 'time',
-      tickCount: 24,
+      tickCount: 12,
       label: {
         formatter: (t, item, index) => {
-          let d = new Date(Number(item.id))
-          return d.getHours()
+          let d = new Date(t)
+          return (
+            d.getHours() +
+            '.' +
+            d.getMinutes() +
+            (d.getMinutes() < 10 ? '0' : '')
+          )
         },
       },
     },

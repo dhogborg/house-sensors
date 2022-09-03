@@ -21,7 +21,7 @@ interface priceNode {
 export default function PriceBars(props: { height: number }) {
   const dispatch = useAppDispatch()
   const store = useAppSelector(tibber.selector)
-  const [includeFeesAndTax, setIncludeFeesAndTax] = useState<boolean>(true)
+  const [includeFeesAndTax, setIncludeFeesAndTax] = useState<boolean>(false)
 
   useEffect(() => {
     dispatch(tibber.get())
@@ -103,17 +103,21 @@ export default function PriceBars(props: { height: number }) {
   let lowIndex = -1
   let highNode: priceNode | undefined
   let highIndex = -1
-  for (let i = 0; i < priceData.length; i++) {
-    if (!lowNode || priceData[i].price < lowNode.price) {
-      lowNode = priceData[i]
-      lowIndex = i
-    }
+  priceData
+    .filter((node) => {
+      return node.category === 'buy_price'
+    })
+    .forEach((node, i) => {
+      if (!lowNode || node.price < lowNode.price) {
+        lowNode = node
+        lowIndex = i
+      }
 
-    if (!highNode || priceData[i].price > highNode.price) {
-      highNode = priceData[i]
-      highIndex = i
-    }
-  }
+      if (!highNode || node.price > highNode.price) {
+        highNode = node
+        highIndex = i
+      }
+    })
 
   priceData.push({
     category: 'current_buy',
@@ -287,11 +291,10 @@ export default function PriceBars(props: { height: number }) {
     annotations,
 
     xAxis: {
-      type: 'time',
       tickCount: 24,
       label: {
         formatter: (t, item, index) => {
-          let d = new Date(Number(item.id))
+          let d = new Date(t)
           return d.getHours()
         },
       },
@@ -307,10 +310,10 @@ export default function PriceBars(props: { height: number }) {
 
 function leftIndent(pos: number, count: number): number {
   const segmWidth = 100 / count
-  return pos * segmWidth
+  return 2 + pos * segmWidth
 }
 
 function topIndent(value: number, high: number): number {
   const percent = (value / high) * 100
-  return 95 - Math.round(percent)
+  return 94 - Math.round(percent)
 }
