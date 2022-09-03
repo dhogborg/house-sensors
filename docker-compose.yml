@@ -2,6 +2,8 @@ version: "3"
 
 volumes:
   influxdb-data:
+  influxdb2-data:
+  influxdb2-config:
   node-red-data:
 
 networks:
@@ -58,14 +60,17 @@ services:
       - 80:80
 
   influxdb:
-    image: influxdb:1.8.10
+    image: influxdb:2.1
     restart: always
     volumes:
       - influxdb-data:/var/lib/influxdb
+      - influxdb2-data:/var/lib/influxdb2
+      - influxdb2-config:/etc/influxdb2
       - ${PWD}/backup:/backup
       - ${PWD}/restore:/restore
     environment:
       - INFLUXDB_HTTP_FLUX_ENABLED=true
+
     ports:
       - 8086:8086
 
