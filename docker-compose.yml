@@ -55,6 +55,7 @@ services:
     restart: always
     depends_on:
       - influxdb
+      - proxy
     ports:
       - 80:80
 
