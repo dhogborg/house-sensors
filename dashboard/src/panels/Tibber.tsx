@@ -1,8 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
 
 import * as tibber from '@lib/slices/tibber'
+import {
+  BUY_TRANSMISSION_FEE_CENTS,
+  BUY_ADDED_TAX_CENTS,
+  SELL_REDUCED_TAX_CENTS,
+  SELL_GRID_BENEFIT_CENTS,
+} from '@lib/config'
 import { formatNumber } from '@lib/helpers'
 import { useAppDispatch, useAppSelector } from '@lib/hooks'
 
@@ -15,6 +21,7 @@ interface priceNode {
 export default function PriceBars(props: { height: number }) {
   const dispatch = useAppDispatch()
   const store = useAppSelector(tibber.selector)
+  const [includeFeesAndTax, setIncludeFeesAndTax] = useState<boolean>(true)
 
   useEffect(() => {
     dispatch(tibber.get())
@@ -26,7 +33,27 @@ export default function PriceBars(props: { height: number }) {
     }
   }, [dispatch])
 
-  const current = Math.round(100 * (store.current?.total || 0))
+  const buyFeesAndTaxes = includeFeesAndTax
+    ? BUY_TRANSMISSION_FEE_CENTS + BUY_ADDED_TAX_CENTS
+    : 0
+  const sellFeesAndTaxes = includeFeesAndTax
+    ? SELL_REDUCED_TAX_CENTS + SELL_GRID_BENEFIT_CENTS
+    : 0
+
+  const currentSek = store.current?.total || 0
+  const currentTax = store.current?.tax || 0
+  const currentBuy = Math.round(100 * currentSek + buyFeesAndTaxes)
+  const currentSell = Math.round(
+    100 * (currentSek - currentTax) + sellFeesAndTaxes,
+  )
+
+  const toggleFeesAndTaxes = (chart: unknown, event: { type: string }) => {
+    switch (event.type) {
+      case 'annotation:click':
+        setIncludeFeesAndTax((state) => !state)
+        return
+    }
+  }
 
   let priceData: priceNode[] = []
 
@@ -34,8 +61,8 @@ export default function PriceBars(props: { height: number }) {
     store.today.map((node) => {
       return {
         ...node,
-        category: 'price',
-        price: Math.round(node.total * 100),
+        category: 'buy_price',
+        price: Math.round(node.total * 100 + buyFeesAndTaxes),
       }
     }),
   )
@@ -44,8 +71,28 @@ export default function PriceBars(props: { height: number }) {
     store.tomorrow.map((node) => {
       return {
         ...node,
-        category: 'price',
-        price: Math.round(node.total * 100),
+        category: 'buy_price',
+        price: Math.round(node.total * 100 + buyFeesAndTaxes),
+      }
+    }),
+  )
+
+  priceData = priceData.concat(
+    store.today.map((node) => {
+      return {
+        ...node,
+        category: 'sell_price',
+        price: Math.round((node.total - node.tax) * 100 + sellFeesAndTaxes),
+      }
+    }),
+  )
+
+  priceData = priceData.concat(
+    store.tomorrow.map((node) => {
+      return {
+        ...node,
+        category: 'sell_price',
+        price: Math.round((node.total - node.tax) * 100 + sellFeesAndTaxes),
       }
     }),
   )
@@ -69,9 +116,9 @@ export default function PriceBars(props: { height: number }) {
   }
 
   priceData.push({
-    category: 'current',
+    category: 'current_buy',
     startsAt: store.current?.startsAt,
-    price: current,
+    price: currentBuy,
   })
 
   let annotations: ColumnConfig['annotations'] = []
@@ -138,10 +185,10 @@ export default function PriceBars(props: { height: number }) {
 
   annotations.push({
     type: 'text',
-    content: `${Math.round(current)} öre`,
+    content: `${Math.round(currentBuy)} öre`,
 
     position: (xScale, yScale) => {
-      return [`50%`, `35%`]
+      return [`50%`, `30%`]
     },
 
     style: {
@@ -161,6 +208,31 @@ export default function PriceBars(props: { height: number }) {
     },
   })
 
+  annotations.push({
+    type: 'text',
+    content: `Sälj: ${Math.round(currentSell)} öre`,
+
+    position: (xScale, yScale) => {
+      return [`50%`, `53%`]
+    },
+
+    style: {
+      textAlign: 'center',
+      fill: 'white',
+      fontSize: 15,
+    },
+
+    offsetY: -10,
+
+    background: {
+      padding: 5,
+      style: {
+        radius: 4,
+        fill: 'rgba(37, 184, 204, 0.6)',
+      },
+    },
+  })
+
   const config: ColumnConfig = {
     data: priceData,
     isStack: false,
@@ -168,12 +240,24 @@ export default function PriceBars(props: { height: number }) {
     xField: 'startsAt',
     yField: 'price',
     padding: 'auto',
+
+    yAxis: {
+      // apply margin to y axis to fit the high-price annotation
+      max: (highNode?.price || 0) * 1.05,
+    },
+
     seriesField: 'category',
     color: (datum, defaultColor) => {
-      if (datum.category === 'current') {
-        return 'red'
+      switch (datum.category) {
+        case 'current_buy':
+          return 'rgba(255, 0 , 0 , 0.6)'
+        case 'buy_price':
+          return 'rgba(37, 184, 204, 0.6)'
+        case 'sell_price':
+          return 'rgba(254, 225, 167, 1.00)'
+        default:
+          return 'blue'
       }
-      return 'rgba(37, 184, 204, 1.00)'
     },
 
     theme: 'dark',
@@ -191,7 +275,9 @@ export default function PriceBars(props: { height: number }) {
       formatter: (datum) => {
         return {
           name: datum.category,
-          value: formatNumber(datum.price, ' öre', { precision: 0 }),
+          value: formatNumber(datum.price, ' öre', {
+            precision: 0,
+          }),
         }
       },
     },
@@ -214,7 +300,7 @@ export default function PriceBars(props: { height: number }) {
 
   return (
     <div className="panel">
-      <Column {...config} />
+      <Column onEvent={toggleFeesAndTaxes} {...config} />
     </div>
   )
 }

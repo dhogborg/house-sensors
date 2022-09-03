@@ -157,7 +157,7 @@ export default function OutdoorTemperature(props: { height: number }) {
         type: 'html',
         html: `<img class="yr-weather-symbol" src=${symbolSrc} alt="${weatherState.current?.symbol_12h}" />`,
 
-        position: [`50%`, `60%`],
+        position: [`50%`, `50%`],
 
         top: true,
       },
@@ -166,7 +166,7 @@ export default function OutdoorTemperature(props: { height: number }) {
         content: weather,
 
         position: (xScale, yScale) => {
-          return [`53%`, `55%`]
+          return [`53%`, `45%`]
         },
 
         style: {
@@ -184,7 +184,7 @@ export default function OutdoorTemperature(props: { height: number }) {
         content: annotation,
 
         position: (xScale, yScale) => {
-          return [`53%`, `35%`]
+          return [`53%`, `25%`]
         },
 
         style: {
