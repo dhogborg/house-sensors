@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect } from 'react'
 
-import * as influxdb from "@lib/influx";
-import { formatNumber } from "@lib/helpers";
+import { deepEqual, formatNumber } from '@lib/helpers'
+import { useAppDispatch, useAppSelector } from '@lib/hooks'
+
+import * as influxdb from '@lib/slices/influxdb'
 
 import {
   Area,
@@ -12,64 +14,51 @@ import {
   GaugeConfig,
   Line,
   LineConfig,
-} from "@ant-design/charts";
+} from '@ant-design/charts'
 
-const time = "now() - 24h";
-const theme = "dark";
-
-type DataPoint = {
-  category: string;
-  time: string;
-  value: number;
-};
+const time = 'now() - 24h'
+const theme = 'dark'
+const refresh = 600 * 1000
 
 export function OutdoorTemperature(props: { height: number }) {
-  const [state, setState] = useState<{ data: any[] }>({ data: [] });
+  const dispatch = useAppDispatch()
+  const query = useAppSelector(influxdb.selectQuery('outdoor'), deepEqual)
 
   useEffect(() => {
-    load();
+    load()
 
     const r = setInterval(() => {
-      load();
-    }, 60 * 1000);
+      load()
+    }, refresh)
     return () => {
-      clearInterval(r);
-    };
-  }, []);
+      clearInterval(r)
+    }
+  }, [])
 
-  const load = async () => {
-    const t = await influxdb.query({
-      db: "sensors",
-      query: `SELECT mean("value") AS "temperature" FROM "sensors"."autogen"."temperature" WHERE time > ${time} AND "name"='Outdoor' GROUP BY time(10m), "name" FILL(linear)`,
-    });
-    const data = t.results[0].series
-      .reduce<DataPoint[]>((data, series) => {
-        const values = series.values.map((value) => {
-          return {
-            category: "Utomhus",
-            time: value[0],
-            value: value[1],
-          };
-        });
+  const load = () => {
+    dispatch(
+      influxdb.getQuery({
+        id: 'outdoor',
+        db: 'sensors',
+        query: `SELECT mean("value") AS "temperature" FROM "sensors"."autogen"."temperature" WHERE time > ${time} AND "name"='Outdoor' GROUP BY time(10m), "name" FILL(previous)`,
+      }),
+    )
+  }
 
-        return data.concat(values);
-      }, [])
-      .filter((value) => !!value.value);
-
-    setState({ data });
-  };
-
-  let current = "-";
-  if (state.data.length > 0) {
-    current = formatNumber(state.data[state.data.length - 1].value, "°");
+  let values = query.series?.[0]?.values || []
+  let current = 0
+  let annotation = '-'
+  if (values.length > 0) {
+    current = values[values.length - 1].value
+    annotation = formatNumber(current, '°')
   }
 
   const config: AreaConfig = {
-    data: state.data,
-    xField: "time",
-    yField: "value",
-    padding: "auto",
-    color: ["#09790a"],
+    data: values,
+    xField: 'time',
+    yField: 'value',
+    padding: 'auto',
+    color: ['#09790a'],
 
     line: {
       style: {
@@ -77,30 +66,32 @@ export function OutdoorTemperature(props: { height: number }) {
       },
     },
 
+    animation: false,
+
     areaStyle: () => {
       return {
-        fill: "l(270) 0:#000000 1:#09790a",
-      };
+        fill: 'l(270) 0:#000000 1:#09790a',
+      }
     },
 
     tooltip: {
       formatter: (datum) => {
-        return { name: datum.category, value: formatNumber(datum.value, "°") };
+        return { name: datum.category, value: formatNumber(datum.value, '°') }
       },
     },
 
     annotations: [
       {
-        type: "text",
-        content: current,
+        type: 'text',
+        content: annotation,
 
         position: (xScale, yScale) => {
-          return [`50%`, `50%`];
+          return [`50%`, `50%`]
         },
 
         style: {
-          textAlign: "center",
-          fill: "white",
+          textAlign: 'center',
+          fill: 'white',
           fontSize: 45,
         },
 
@@ -110,141 +101,143 @@ export function OutdoorTemperature(props: { height: number }) {
           padding: 10,
           style: {
             radius: 4,
-            fill: "rgba(125, 227, 144, 0.6)",
+            fill:
+              current > 0
+                ? 'rgba(125, 227, 144, 0.6)'
+                : 'rgba(92, 201, 245, 1.00)',
           },
         },
       },
     ],
 
-    seriesField: "category",
+    seriesField: 'category',
     theme,
     height: props.height,
     smooth: true,
 
     xAxis: {
-      type: "time",
+      type: 'time',
       tickCount: 24,
       label: {
         formatter: (t, item, index) => {
-          let d = new Date(Number(item.id));
-          return d.getHours();
+          let d = new Date(Number(item.id))
+          return d.getHours()
         },
       },
     },
-  };
+  }
 
   return (
     <div className="panel">
       <Area {...config} />
     </div>
-  );
+  )
 }
 
 export function IndoorTemperature(props: { height: number }) {
-  const [state, setState] = useState<{ data: any[] }>({ data: [] });
+  const dispatch = useAppDispatch()
+  const query = useAppSelector(influxdb.selectQuery('indoor'), deepEqual)
 
   useEffect(() => {
-    load();
+    load()
 
     const r = setInterval(() => {
-      load();
-    }, 60 * 1000);
+      load()
+    }, refresh)
     return () => {
-      clearInterval(r);
-    };
-  }, []);
+      clearInterval(r)
+    }
+  }, [])
 
-  const load = async () => {
-    const t = await influxdb.query({
-      db: "sensors",
-      query: `SELECT mean("value") AS "mean_value" FROM "sensors"."autogen"."temperature" WHERE time > ${time} AND ("name"='Värmepump' OR "name"='Övervåning' OR "name"='Vardagsrum') AND ("source" ='Tado' OR "source" = 'Aqara') GROUP BY time(5m), "name" FILL(linear)`,
-    });
-    const data = t.results[0].series
-      .reduce<DataPoint[]>((prev, curr) => {
-        const values = curr.values.map((value) => {
-          return {
-            category: curr.tags.name,
-            time: value[0],
-            value: value[1],
-          };
-        });
+  const load = () => {
+    dispatch(
+      influxdb.getQuery({
+        id: 'indoor',
+        db: 'sensors',
+        query: `SELECT mean("value") AS "mean_value" FROM "sensors"."autogen"."temperature" WHERE time > ${time} AND ("name"='Värmepump' OR "name"='Övervåning' OR "name"='Vardagsrum') AND ("source" ='Tado' OR "source" = 'Aqara') GROUP BY time(5m), "name" FILL(previous)`,
+      }),
+    )
+  }
 
-        return prev.concat(values);
-      }, [])
-      .filter((value) => !!value.value);
-
-    setState({ data });
-  };
+  let data: influxdb.Series['values'] = []
+  if (query.series?.length > 0) {
+    data = query.series.reduce<influxdb.Series['values']>((prev, curr) => {
+      return prev.concat(curr.values)
+    }, [])
+  }
 
   const config: LineConfig = {
-    data: state.data,
-    xField: "time",
-    yField: "value",
-    padding: "auto",
-    seriesField: "category",
+    data: data,
+    xField: 'time',
+    yField: 'value',
+    padding: 'auto',
+    seriesField: 'category',
     theme,
     height: props.height,
 
-    color: ["#30b673", "#be3d5e", "#4e5cbc"],
+    color: ['#30b673', '#be3d5e', '#4e5cbc'],
     yAxis: {
       min: 15,
     },
+
+    animation: false,
 
     tooltip: {
       formatter: (datum) => {
         return {
           name: datum.category,
-          value: formatNumber(datum.value, "°", { precision: 1 }),
-        };
+          value: formatNumber(datum.value, '°', { precision: 1 }),
+        }
       },
     },
 
     xAxis: {
-      type: "time",
+      type: 'time',
       tickCount: 24,
       label: {
         formatter: (t, item, index) => {
-          let d = new Date(Number(item.id));
-          return d.getHours();
+          let d = new Date(Number(item.id))
+          return d.getHours()
         },
       },
     },
-  };
+  }
 
   return (
     <div className="panel">
       <Line {...config} />
     </div>
-  );
+  )
 }
 
 export function PowerCombined(props: { height: number }) {
-  const [state, setState] = useState<{ power: number }>({ power: 0 });
+  const dispatch = useAppDispatch()
+  const query = useAppSelector(influxdb.selectQuery('power'), deepEqual)
+
   useEffect(() => {
-    load();
+    load()
 
     const r = setInterval(() => {
-      load();
-    }, 10 * 1000);
+      load()
+    }, 10 * 1000)
     return () => {
-      clearInterval(r);
-    };
-  }, []);
+      clearInterval(r)
+    }
+  }, [])
 
-  const max = 9000;
+  const load = () => {
+    dispatch(
+      influxdb.getQuery({
+        id: 'power',
+        db: 'energy',
+        query: `SELECT "power" FROM "energy"."autogen"."electricity" WHERE time > now() - 1m AND "phase"='combined' ORDER BY time DESC LIMIT 1`,
+      }),
+    )
+  }
 
-  const load = async () => {
-    const t = await influxdb.query({
-      db: "energy",
-      query: `SELECT "power" FROM "energy"."autogen"."electricity" WHERE time > now() - 1m AND "phase"='combined' ORDER BY time DESC LIMIT 1`,
-    });
-
-    const power: number = t.results[0]?.series[0]?.values[0][1] || 0;
-
-    setState({ power });
-  };
-
-  const percent = state.power / max;
+  const power = query.series?.[0]?.values?.[0]?.value || 0
+  const max = 9000
+  const percent = power / max
 
   const config: GaugeConfig = {
     height: props.height,
@@ -252,7 +245,7 @@ export function PowerCombined(props: { height: number }) {
 
     radius: 0.75,
     range: {
-      color: "#30BF78",
+      color: percent === 0 ? '#e5e5e5' : '#30BF78',
       width: 12,
     },
     indicator: undefined,
@@ -261,67 +254,68 @@ export function PowerCombined(props: { height: number }) {
       content: {
         offsetY: -50,
         style: {
-          fontSize: "24px",
-          color: "white",
+          fontSize: '24px',
+          color: 'white',
         },
         formatter: (datum, data) => {
-          const watts = Number(datum!.percent * max);
+          const watts = Number(datum!.percent * max)
           if (watts > 1000) {
-            return formatNumber(watts / 1000, " kW", { precision: 2 });
+            return formatNumber(watts / 1000, ' kW', { precision: 2 })
           }
-          return formatNumber(watts, " W", { precision: 0 });
+          return formatNumber(watts, ' W', { precision: 0 })
         },
       },
       title: {
         offsetY: 1,
         style: {
-          fontSize: "14px",
-          color: "#ddd",
+          fontSize: '14px',
+          color: '#ddd',
         },
         formatter: (datum, data) => {
-          return "Nuvarande förbrk.";
+          return 'Nuvarande förbrk.'
         },
       },
     },
     gaugeStyle: {
-      lineCap: "round",
+      lineCap: 'round',
     },
-  };
+  }
 
   return (
     <div className="panel">
       <Gauge {...config} />
     </div>
-  );
+  )
 }
 
 export function PowerHeatPump(props: { height: number }) {
-  const [state, setState] = useState<{ power: number }>({ power: 0 });
+  const dispatch = useAppDispatch()
+  const query = useAppSelector(influxdb.selectQuery('heatpump'), deepEqual)
+
   useEffect(() => {
-    load();
+    load()
 
     const r = setInterval(() => {
-      load();
-    }, 10 * 1000);
+      load()
+    }, 10 * 1000)
     return () => {
-      clearInterval(r);
-    };
-  }, []);
+      clearInterval(r)
+    }
+  }, [])
 
-  const max = 2200;
+  const load = () => {
+    dispatch(
+      influxdb.getQuery({
+        id: 'heatpump',
+        db: 'energy',
+        query: `SELECT "power" FROM "energy"."autogen"."heating" WHERE time > now() - 1m AND "type"='heatpump' ORDER BY time DESC LIMIT 1`,
+      }),
+    )
+  }
 
-  const load = async () => {
-    const t = await influxdb.query({
-      db: "energy",
-      query: `SELECT "power" FROM "energy"."autogen"."heating" WHERE time > now() - 1m AND "type"='heatpump' ORDER BY time DESC LIMIT 1`,
-    });
-
-    const power: number = t.results[0]?.series[0]?.values[0][1] || 0;
-
-    setState({ power });
-  };
-
-  const percent = state.power / max;
+  const max = 2200
+  const power = query.series?.[0]?.values?.[0]?.value || 0
+  const percent = power / max
 
   const config: GaugeConfig = {
     height: props.height,
@@ -329,7 +323,7 @@ export function PowerHeatPump(props: { height: number }) {
 
     radius: 0.75,
     range: {
-      color: "#30BF78",
+      color: percent === 0 ? '#e5e5e5' : '#30BF78',
       width: 12,
     },
     indicator: undefined,
@@ -338,146 +332,163 @@ export function PowerHeatPump(props: { height: number }) {
       content: {
         offsetY: -50,
         style: {
-          fontSize: "24px",
-          color: "white",
+          fontSize: '24px',
+          color: 'white',
         },
         formatter: (datum, data) => {
-          return `${Number(datum!.percent * max).toFixed(0)} W`;
+          return `${Number(datum!.percent * max).toFixed(0)} W`
         },
       },
       title: {
         offsetY: 1,
         style: {
-          fontSize: "14px",
-          color: "#ddd",
+          fontSize: '14px',
+          color: '#ddd',
         },
         formatter: (datum, data) => {
-          return "Värmepump";
+          return 'Värmepump'
         },
       },
     },
     gaugeStyle: {
-      lineCap: "round",
+      lineCap: 'round',
     },
-  };
+  }
 
   return (
     <div className="panel">
       <Gauge {...config} />
     </div>
-  );
+  )
 }
 
 export function PowerUse(props: { height: number }) {
-  const [state, setState] = useState<{ usageData: any[] }>({
-    usageData: [],
-  });
+  const dispatch = useAppDispatch()
+
+  const heatpumpQuery = useAppSelector(
+    influxdb.selectQuery('heatpumpConsumed'),
+    deepEqual,
+  )
+  const totalQuery = useAppSelector(
+    influxdb.selectQuery('totalConsumed'),
+    deepEqual,
+  )
 
   useEffect(() => {
-    load();
+    load()
 
     const r = setInterval(() => {
-      load();
-    }, 60 * 1000);
+      load()
+    }, refresh)
     return () => {
-      clearInterval(r);
-    };
-  }, []);
+      clearInterval(r)
+    }
+  }, [])
 
-  const load = async () => {
-    const hp = await influxdb.query({
-      db: "energy",
-      query: `SELECT mean("power") as "Heating" FROM "energy"."autogen"."heating" WHERE time > ${time} AND "type"='heatpump' GROUP BY time(1h) FILL(null)`,
-    });
+  const load = () => {
+    dispatch(
+      influxdb.getQuery({
+        id: 'heatpumpConsumed',
+        db: 'energy',
+        categories: ['Värmepump'],
+        query: `SELECT mean("power") as "Heating" FROM "energy"."autogen"."heating" WHERE time > ${time} AND "type"='heatpump' GROUP BY time(1h) FILL(0)`,
+      }),
+    )
+    dispatch(
+      influxdb.getQuery({
+        id: 'totalConsumed',
+        db: 'energy',
+        categories: ['Övrigt'],
+        query: `SELECT mean("power") as "Consumption" FROM "energy"."autogen"."electricity" WHERE time > ${time} AND "phase"='combined' GROUP BY time(1h) FILL(0)`,
+      }),
+    )
+  }
 
-    const d2 = hp.results[0].series.reduce<DataPoint[]>((data, series) => {
-      const values = series.values.map((value) => {
-        return {
-          category: "Värmepump",
-          time: value[0],
-          value: Math.round(value[1]) / 1000,
-        };
-      });
+  const heatpumpSeries = heatpumpQuery.series?.[0]
+  const heatpumpData = heatpumpSeries?.values.map((hpValue, i) => {
+    let kwh = Math.round(hpValue.value) / 1000
+    if (i == heatpumpSeries.values.length - 1) {
+      kwh = (new Date().getMinutes() / 60) * kwh
+    }
+    return {
+      ...hpValue,
+      value: kwh,
+    }
+  })
 
-      // calculate the amount used last hour before the hour is complete by multiplying by the
-      // percentage of the hour that has passed.
-      const d = new Date();
-      let last = values[values.length - 1];
-      last.value = (d.getMinutes() / 60) * last.value;
+  const totalSeries = totalQuery.series?.[0]
+  // renaming total to to other since we subtract some sources from total
+  const other = totalSeries?.values.map((totValue, i) => {
+    let kwh = Math.round(totValue.value) / 1000
 
-      return data.concat(values);
-    }, []);
+    const hpValue = heatpumpSeries?.values?.[i]?.value || 0
+    const hpKwh = Math.round(hpValue) / 1000
 
-    const e = await influxdb.query({
-      db: "energy",
-      query: `SELECT mean("power") as "Consumption" FROM "energy"."autogen"."electricity" WHERE time > ${time} AND "phase"='combined' GROUP BY time(1h) FILL(null)`,
-    });
-    const d1 = e.results[0].series.reduce<DataPoint[]>((data, series) => {
-      const values = series.values.map((value, i) => {
-        let v = Math.round(value[1]) / 1000;
-        v = v - d2[i].value;
-        return {
-          category: "Övrigt",
-          time: value[0],
-          value: v,
-        };
-      });
+    // subtract the known consumers
+    if (kwh - hpKwh > 0) {
+      kwh = kwh - hpKwh
+    }
 
-      // calculate the amount used last hour before the hour is complete by multiplying by the
-      // percentage of the hour that has passed.
-      const d = new Date();
-      let last = values[values.length - 1];
-      last.value = (d.getMinutes() / 60) * last.value;
+    if (i == totalSeries.values.length - 1) {
+      kwh = (new Date().getMinutes() / 60) * kwh
+    }
 
-      return data.concat(values);
-    }, []);
+    return {
+      ...totValue,
+      value: kwh,
+    }
+  })
 
-    setState({ ...state, usageData: d1.concat(d2) });
-  };
+  let data: influxdb.Series['values'] = []
+  if (other && heatpumpData) {
+    data = data.concat(other).concat(heatpumpData)
+  }
 
   const config: ColumnConfig = {
-    data: state.usageData,
+    data,
     isStack: true,
-    xField: "time",
-    yField: "value",
-    padding: "auto",
-    seriesField: "category",
-    color: ["#fee1a7", "#7dbdba"],
+    xField: 'time',
+    yField: 'value',
+    padding: 'auto',
+    seriesField: 'category',
+    color: ['#fee1a7', '#7dbdba'],
 
     theme,
     height: props.height,
 
     label: undefined,
 
+    animation: false,
+
     legend: {
-      layout: "horizontal",
-      position: "top",
+      layout: 'horizontal',
+      position: 'top',
     },
 
     tooltip: {
       formatter: (datum) => {
         return {
           name: datum.category,
-          value: formatNumber(datum.value, " kWh"),
-        };
+          value: formatNumber(datum.value, ' kWh'),
+        }
       },
     },
 
     xAxis: {
-      type: "time",
+      type: 'time',
       tickCount: 24,
       label: {
         formatter: (t, item, index) => {
-          let d = new Date(Number(item.id));
-          return d.getHours();
+          let d = new Date(Number(item.id))
+          return d.getHours()
         },
       },
     },
-  };
+  }
 
   return (
     <div className="panel">
       <Column {...config} />
     </div>
-  );
+  )
 }

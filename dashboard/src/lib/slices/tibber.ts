@@ -115,10 +115,9 @@ export const slice = createSlice({
       })
       .addCase(get.fulfilled, (state, action) => {
         state.status = 'idle'
-        state = {
-          ...state,
-          ...action.payload,
-        }
+        state.current = action.payload.current
+        state.today = action.payload.today
+        state.tomorrow = action.payload.tomorrow
       })
       .addCase(get.rejected, (state, action) => {
         state.status = 'failed'

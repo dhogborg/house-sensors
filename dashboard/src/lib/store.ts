@@ -3,12 +3,12 @@ import { configureStore, ThunkAction, Action } from '@reduxjs/toolkit'
 import { combineReducers } from 'redux'
 
 import tibber from './slices/tibber'
-import energy from './slices/energy'
+import influxdb from './slices/influxdb'
 
 export const store = configureStore({
   reducer: combineReducers({
     tibber,
-    energy,
+    influxdb,
   }),
   preloadedState: {},
 })
