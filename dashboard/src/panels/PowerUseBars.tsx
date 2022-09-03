@@ -28,17 +28,10 @@ export default function PowerUseBars(props: { height: number }) {
   useEffect(() => {
     const load = () => {
       batch(() => {
-        // dispatch(
-        //   influxdb.getQuery({
-        //     id: 'heatpumpConsumed',
-        //     db: 'energy',
-        //     categories: ['Värmepump'],
-        //     query: `SELECT mean("power") as "Heating" FROM "energy"."autogen"."heating" WHERE time > ${time} AND "type"='heatpump' GROUP BY time(1h) FILL(0)`,
-        //   }),
-        // )
         dispatch(
           influxdb.getFluxQuery({
             id: 'heatpumpConsumed',
+            category: 'Värmepump',
             query: `
           from(bucket: "energy/autogen")
             |> range(start: -24h)
@@ -51,11 +44,18 @@ export default function PowerUseBars(props: { height: number }) {
           }),
         )
         dispatch(
-          influxdb.getQuery({
+          influxdb.getFluxQuery({
             id: 'totalConsumed',
-            db: 'energy',
-            categories: ['Övrigt'],
-            query: `SELECT mean("power") as "Consumption" FROM "energy"."autogen"."electricity" WHERE time > ${time} AND "phase"='combined' GROUP BY time(1h) FILL(0)`,
+            category: 'Övrigt',
+            query: `
+          from(bucket: "energy/autogen")
+            |> range(start: -24h)
+            |> filter(fn: (r) => r._measurement == "electricity" and (r._field == "power"))
+            |> filter(fn: (r) => r.phase == "combined")
+            |> aggregateWindow(every: 1h, fn: mean)
+            |> fill(value: 0.0)
+            |> yield(name: "electricity")
+          `,
           }),
         )
       })
@@ -188,7 +188,7 @@ export default function PowerUseBars(props: { height: number }) {
 
         position: (xScale, yScale: any) => {
           return [
-            `${2 + i * 4}%`, // left
+            `${2 + i * 4.1666}%`, // left
             `${100 - Math.round((kwh / yScale.value.max) * 100)}%`, // top
           ]
         },

@@ -38,32 +38,40 @@ const initialState: State = {
 
 export const getFluxQuery = createAsyncThunk<
   Series[],
-  { id: string; query: string },
+  { id: string; query: string; category?: string },
   { state: RootState }
 >('influxdb/flux', async (args) => {
   const r = await fluxQuery({ query: args.query })
-  const rows = r.split('n')
-  const header = rows.slice(1)
+  // Split into rows and filter comments
+  const rows = r.split('\n').filter((row) => {
+    if (row.indexOf('#') === 0) return false
+    if (!row || row.trim() === '') return false
+    return true
+  })
+  // extract header row, the first non-comment.
+  const header = rows.splice(0, 1)[0]
 
+  // closure that translates columns to cell indexes
   const rowParser = (header: string) => {
-    const headCells = header.split(',')
+    const headCells = header.split(',').map((cell) => cell.trim())
     return (row: string) => {
       const rowObj: { [key: string]: number | string } = {}
       row.split(',').forEach((cell, i) => {
-        rowObj[headCells[i]] = cell
+        rowObj[headCells[i]] = cell.trim()
       })
+
       return rowObj
     }
   }
 
-  const toObj = rowParser(header[0])
+  const toObj = rowParser(header)
   const values: Series['values'] = rows
     .map((row) => toObj(row))
     .map((row) => {
       return {
         time: row['_time'] as string,
         value: Number(row['_value']),
-        category: row['_measurement'] as string,
+        category: args.category || (row['_measurement'] as string),
       }
     })
 
@@ -74,8 +82,10 @@ export const getFluxQuery = createAsyncThunk<
     tags: {},
     columns: [],
 
-    values,
+    values: values.slice(0, values.length - 1),
   }
+
+  console.log(series)
 
   return [series]
 })
