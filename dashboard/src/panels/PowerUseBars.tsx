@@ -128,37 +128,21 @@ export default function PowerUseBars(props: { height: number }) {
     data = data.concat(heatpumpData)
   }
 
-  const config: ColumnConfig = {
-    data,
-    isStack: true,
-    xField: 'time',
-    yField: 'value',
-    padding: 'auto',
-    seriesField: 'category',
-    color: ['#fee1a7', '#7dbdba'],
-
-    theme,
-    height: props.height,
-
-    label: undefined,
-
-    animation: false,
-
-    legend: {
-      layout: 'horizontal',
-      position: 'top',
-    },
-
-    tooltip: {
-      formatter: (datum) => {
-        return {
-          name: datum.category,
-          value: formatNumber(datum.value, ' kWh'),
-        }
+  let annotations: ColumnConfig['annotations'] = [
+    {
+      type: 'line',
+      start: ['min', 2],
+      end: ['max', 2],
+      style: {
+        lineWidth: 2,
+        stroke: '#F4664A',
+        lineDash: [2, 2],
       },
     },
+  ]
 
-    annotations: total.map((hour, i) => {
+  annotations = annotations.concat(
+    total.map((hour, i) => {
       let kwh = hour.value / 1000
       const time = hour.time
 
@@ -213,6 +197,39 @@ export default function PowerUseBars(props: { height: number }) {
         },
       }
     }),
+  )
+
+  const config: ColumnConfig = {
+    data,
+    isStack: true,
+    xField: 'time',
+    yField: 'value',
+    padding: 'auto',
+    seriesField: 'category',
+    color: ['#fee1a7', '#7dbdba'],
+
+    theme,
+    height: props.height,
+
+    label: undefined,
+
+    animation: false,
+
+    legend: {
+      layout: 'horizontal',
+      position: 'top',
+    },
+
+    tooltip: {
+      formatter: (datum) => {
+        return {
+          name: datum.category,
+          value: formatNumber(datum.value, ' kWh'),
+        }
+      },
+    },
+
+    annotations,
 
     xAxis: {
       tickCount: 24,

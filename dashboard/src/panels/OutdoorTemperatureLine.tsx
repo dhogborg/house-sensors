@@ -1,37 +1,55 @@
 import { useEffect } from 'react'
 
-import { refresh, time, theme } from '@lib/config'
+import { theme } from '@lib/config'
 import { deepEqual, formatNumber } from '@lib/helpers'
 import { useAppDispatch, useAppSelector } from '@lib/hooks'
 
 import * as influxdb from '@lib/slices/influxdb'
+import * as yr from '@lib/slices/yr'
 
 import { Area, AreaConfig } from '@ant-design/charts'
+
+const SECONDS = 1000
 
 export default function OutdoorTemperature(props: { height: number }) {
   const dispatch = useAppDispatch()
   const query = useAppSelector(influxdb.selectQuery('outdoor'), deepEqual)
+  const weatherState = useAppSelector(yr.selector)
 
   useEffect(() => {
+    const load = () => {
+      dispatch(
+        influxdb.getQuery({
+          id: 'outdoor',
+          db: 'sensors',
+          query: `SELECT mean("value") AS "temperature" FROM "sensors"."autogen"."temperature" WHERE time > now() - 24h AND "name"='Outdoor' GROUP BY time(10m), "name" FILL(previous)`,
+        }),
+      )
+    }
+
     load()
 
     const r = setInterval(() => {
       load()
-    }, refresh)
+    }, 10 * 60 * SECONDS)
     return () => {
       clearInterval(r)
     }
-  }, [])
+  }, [dispatch])
 
-  const load = () => {
-    dispatch(
-      influxdb.getQuery({
-        id: 'outdoor',
-        db: 'sensors',
-        query: `SELECT mean("value") AS "temperature" FROM "sensors"."autogen"."temperature" WHERE time > ${time} AND "name"='Outdoor' GROUP BY time(10m), "name" FILL(previous)`,
-      }),
-    )
-  }
+  useEffect(() => {
+    const load = () => {
+      dispatch(yr.get())
+    }
+    load()
+
+    const r = setInterval(() => {
+      load()
+    }, 30 * 60 * SECONDS)
+    return () => {
+      clearInterval(r)
+    }
+  }, [dispatch])
 
   let values = query.series?.[0]?.values || []
   let current = 0
@@ -40,6 +58,16 @@ export default function OutdoorTemperature(props: { height: number }) {
     current = values[values.length - 1].value
     annotation = formatNumber(current, '°')
   }
+
+  let weather = ''
+  if (weatherState.lowTemp?.air_temperature) {
+    weather += `${Math.floor(weatherState.lowTemp.air_temperature)}°`
+  }
+
+  if (weatherState.highTemp?.air_temperature) {
+    weather += ` - ${Math.ceil(weatherState.highTemp.air_temperature)}°`
+  }
+  const symbolSrc = `/weathericon/svg/${weatherState.current?.symbol_12h}.svg`
 
   const config: AreaConfig = {
     data: values,
@@ -70,11 +98,51 @@ export default function OutdoorTemperature(props: { height: number }) {
 
     annotations: [
       {
+        type: 'line',
+        start: ['min', 0],
+        end: ['max', 0],
+        style: {
+          lineWidth: 2,
+          stroke: 'rgba(92, 201, 245, 0.50)',
+          lineDash: [0, 0],
+        },
+      },
+      {
+        type: 'text',
+        content: weather,
+
+        position: (xScale, yScale) => {
+          return [`50%`, `55%`]
+        },
+
+        style: {
+          textAlign: 'center',
+          fill: 'white',
+          fontSize: 15,
+        },
+        background: {
+          padding: 5,
+        },
+      },
+      {
+        type: 'image',
+        src: symbolSrc,
+        position: [`50%`, `50%`],
+
+        top: true,
+        offsetX: 255,
+        offsetY: -75,
+        style: {
+          width: 32,
+          height: 32,
+        },
+      },
+      {
         type: 'text',
         content: annotation,
 
         position: (xScale, yScale) => {
-          return [`50%`, `50%`]
+          return [`50%`, `35%`]
         },
 
         style: {
