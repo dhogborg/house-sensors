@@ -33,30 +33,25 @@ const initialState: State = {
 
 interface PriceResult {
   viewer: {
-    homes: {
-      currentSubscription: {
-        priceInfo: {
-          current: PriceNode
-          today: PriceNode[]
-          tomorrow: PriceNode[]
-          range: {
-            nodes: PriceNode[]
-          }
-        }
+    homes: Home[]
+  }
+}
+
+interface Home {
+  currentSubscription: {
+    priceInfo: {
+      current: PriceNode
+      today: PriceNode[]
+      tomorrow: PriceNode[]
+      range: {
+        nodes: PriceNode[]
       }
-    }[]
+    }
   }
 }
 
 export const get = createAsyncThunk<
-  {
-    current: PriceNode
-    tomorrow: PriceNode[]
-    today: PriceNode[]
-    range: {
-      nodes: PriceNode[]
-    }
-  },
+  Home['currentSubscription']['priceInfo'],
   void,
   { state: RootState }
 >(
@@ -92,7 +87,14 @@ export const get = createAsyncThunk<
     }
   }`
     const result = await doRequest<PriceResult>(query)
-    return result.viewer.homes[0].currentSubscription.priceInfo
+    const activeHome = result.viewer.homes.find((home) => {
+      if (home.currentSubscription.priceInfo.current) {
+        return true
+      }
+      return false
+    })
+
+    return activeHome!.currentSubscription.priceInfo
   },
   {
     condition: (arg, { getState }): boolean => {
