@@ -10,8 +10,6 @@ import * as tibber from '@lib/slices/tibber'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
 
-const time = 'now() - 24h'
-
 export default function PowerUseBars(props: { height: number }) {
   const dispatch = useAppDispatch()
 
