@@ -38,44 +38,59 @@ const initialState: State = {
 
 export const getQuery = createAsyncThunk<
   Series[],
-  { id: string; db: string; query: string; categories?: string[] }
->('influxdb/get', async (args) => {
-  const r = await query(args)
+  { id: string; db: string; query: string; categories?: string[] },
+  { state: RootState }
+>(
+  'influxdb/get',
+  async (args) => {
+    const r = await query(args)
 
-  const series: Series[] = r.results
-    .reduce<Response['results'][number]['series']>((prev, curr) => {
-      return prev.concat(curr.series)
-    }, [])
-    .map((series, i) => {
-      let category = args.id
-      if (series.name) {
-        category = series.name
-      }
-      if (series.tags?.name) {
-        category = series.tags.name
-      }
-      if (args.categories && args.categories[i]) {
-        category = args.categories[i]
+    const series: Series[] = r.results
+      .reduce<Response['results'][number]['series']>((prev, curr) => {
+        return prev.concat(curr.series)
+      }, [])
+      .map((series, i) => {
+        let category = args.id
+        if (series.name) {
+          category = series.name
+        }
+        if (series.tags?.name) {
+          category = series.tags.name
+        }
+        if (args.categories && args.categories[i]) {
+          category = args.categories[i]
+        }
+
+        return {
+          id: args.id,
+          name: series.name,
+
+          tags: series.tags,
+          columns: series.columns,
+
+          values: series.values.map((d) => {
+            return {
+              time: d[0] as string,
+              category,
+              value: d[1] as number,
+            }
+          }),
+        }
+      })
+    return series
+  },
+  {
+    condition: (arg, { getState }): boolean => {
+      const state = getState().influxdb
+      const query = state.query[arg.id]
+      if (query?.fetching) {
+        return false
       }
 
-      return {
-        id: args.id,
-        name: series.name,
-
-        tags: series.tags,
-        columns: series.columns,
-
-        values: series.values.map((d) => {
-          return {
-            time: d[0] as string,
-            category,
-            value: d[1] as number,
-          }
-        }),
-      }
-    })
-  return series
-})
+      return true
+    },
+  },
+)
 
 export const slice = createSlice({
   name: 'influxdb',

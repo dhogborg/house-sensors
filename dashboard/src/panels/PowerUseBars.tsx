@@ -93,8 +93,11 @@ export default function PowerUseBars(props: { height: number }) {
   })
 
   let data: influxdb.Series['values'] = []
-  if (other && heatpumpData) {
-    data = data.concat(other).concat(heatpumpData)
+  if (other) {
+    data = data.concat(other)
+  }
+  if (heatpumpData) {
+    data = data.concat(heatpumpData)
   }
 
   const config: ColumnConfig = {
@@ -159,7 +162,7 @@ export default function PowerUseBars(props: { height: number }) {
 
         position: (xScale, yScale: any) => {
           return [
-            `${i * 4}%`,
+            `${2 + i * 4}%`,
             `${100 - Math.round((kwh / yScale.value.max) * 100)}%`,
           ]
         },
@@ -183,15 +186,16 @@ export default function PowerUseBars(props: { height: number }) {
     }),
 
     xAxis: {
-      type: 'time',
       tickCount: 24,
       label: {
         formatter: (t, item, index) => {
-          let d = new Date(Number(item.id))
+          let d = new Date(t)
           return d.getHours()
         },
       },
     },
+    yAxis: {},
+    columnWidthRatio: 0.6,
   }
 
   return (
