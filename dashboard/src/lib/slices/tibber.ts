@@ -5,9 +5,9 @@ import { RootState } from '../store'
 
 export interface State {
   current?: PriceNode
-
   today: PriceNode[]
   tomorrow: PriceNode[]
+  nodes: PriceNode[]
 
   status: 'idle' | 'loading' | 'failed'
   error?: string
@@ -17,15 +17,14 @@ export interface State {
 
 export interface PriceNode {
   total: number
-  energy: number
-  tax: number
   startsAt: string
 }
 
 const initialState: State = {
   current: undefined,
-  today: [],
   tomorrow: [],
+  today: [],
+  nodes: [],
 
   status: 'idle',
 
@@ -40,6 +39,9 @@ interface PriceResult {
           current: PriceNode
           today: PriceNode[]
           tomorrow: PriceNode[]
+          range: {
+            nodes: PriceNode[]
+          }
         }
       }
     }[]
@@ -49,8 +51,11 @@ interface PriceResult {
 export const get = createAsyncThunk<
   {
     current: PriceNode
-    today: PriceNode[]
     tomorrow: PriceNode[]
+    today: PriceNode[]
+    range: {
+      nodes: PriceNode[]
+    }
   },
   void,
   { state: RootState }
@@ -65,21 +70,21 @@ export const get = createAsyncThunk<
           priceInfo{
             current{
               total
-              energy
-              tax
               startsAt
             }
-            today {
+            tomorrow{
               total
-              energy
-              tax
               startsAt
             }
-            tomorrow {
+            today{
               total
-              energy
-              tax
               startsAt
+            }
+            range(resolution: HOURLY, last: 25){
+              nodes{
+                startsAt,
+                total,
+              }
             }
           }
         }
@@ -118,6 +123,7 @@ export const slice = createSlice({
         state.current = action.payload.current
         state.today = action.payload.today
         state.tomorrow = action.payload.tomorrow
+        state.nodes = action.payload.range.nodes
       })
       .addCase(get.rejected, (state, action) => {
         state.status = 'failed'

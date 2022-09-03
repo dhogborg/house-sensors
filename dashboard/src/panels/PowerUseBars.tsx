@@ -131,11 +131,7 @@ export default function PowerUseBars(props: { height: number }) {
       let kwh = hour.value / 1000
       const time = hour.time
 
-      if (i === total.length - 1) {
-        kwh = (new Date().getMinutes() / 60) * kwh
-      }
-
-      let priceNode = priceState.today.filter((n) => {
+      let priceNode = priceState.nodes.filter((n) => {
         const d1 = new Date(n.startsAt)
         const d2 = new Date(time)
         if (d1.getDate() !== d2.getDate()) return false
@@ -143,14 +139,23 @@ export default function PowerUseBars(props: { height: number }) {
         return true
       })[0]
 
-      let price = '-'
-      if (priceNode) {
-        price = Number(kwh * priceNode.total).toFixed(2)
+      if (i === total.length - 1) {
+        kwh = (new Date().getMinutes() / 60) * kwh
+        priceNode = priceState.current!
       }
+
+      let priceStr = ''
+      if (priceNode) {
+        priceStr = Number(kwh * priceNode.total).toFixed(2)
+      }
+
+      let fill = 'rgba(0,0,0,0)'
+      if (priceNode?.total !== undefined)
+        fill = priceFill(kwh * priceNode.total)
 
       return {
         type: 'text',
-        content: price,
+        content: priceStr,
 
         position: (xScale, yScale: any) => {
           return [
@@ -171,7 +176,7 @@ export default function PowerUseBars(props: { height: number }) {
           padding: 5,
           style: {
             radius: 4,
-            fill: '#f890a1',
+            fill,
           },
         },
       }
@@ -194,4 +199,16 @@ export default function PowerUseBars(props: { height: number }) {
       <Column {...config} />
     </div>
   )
+}
+
+function priceFill(cost: number): string {
+  const minHue = 100
+  const step = 2.6
+  let percent = (cost / 6) * 100
+  if (percent > 100) {
+    percent = 100
+  }
+  const hue = Number(minHue + step * percent).toFixed(0)
+
+  return `hsl(${hue}, 70%, 70%)`
 }

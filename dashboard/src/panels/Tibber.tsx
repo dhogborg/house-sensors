@@ -21,7 +21,6 @@ export default function PriceBars(props: { height: number }) {
   }, [dispatch])
 
   const current = Math.round(100 * (store.current?.total || 0))
-  console.log({ current })
 
   let priceData: any[] = []
 
