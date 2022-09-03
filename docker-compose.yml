@@ -1,0 +1,54 @@
+version: "3"
+
+volumes:
+  influxdb-data:
+  node-red-data:
+
+networks:
+  default:
+
+services:
+  node-red:
+    image: nodered/node-red:latest-12
+    volumes:
+      - node-red-data:/data
+    ports:
+      - 1880:1880
+
+  verisure-mqtt:
+    image: mountaindude/verisure-mqtt:latest
+    restart: always
+    depends_on:
+      - mqtt
+    # Set debug flag to true to output all received info to console.
+    # False will limit output to only mention that a query to the Verisure API is made
+    environment:
+      - "VERISURE_DEBUG=true"
+      - "MQTT_BROKER_HOST=sensors_mqtt_1"
+      - "MQTT_BROKER_PORT=1883"
+      - "MQTT_ROOT_TOPIC=sensors/"
+      - "VERISURE_USERNAME=${VERISURE_USERNAME}"
+      - "VERISURE_PWD=${VERISURE_PASSWORD}"
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ${PWD}/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    ports:
+      - 1883:1883
+      - 9001:9001
+
+  influxdb:
+    image: influxdb:1.7.8-alpine
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+    ports:
+      - 8086:8086
+
+  chronograf:
+    image: chronograf:1.7.8
+    depends_on:
+      - influxdb
+    command: [chronograf, --influxdb-url, "http://influxdb:8086"]
+    ports:
+      - 8888:8888
