@@ -26,7 +26,7 @@ export default function PowerUseBars(props: { height: number }) {
   const priceState = useAppSelector(tibber.selector)
 
   useEffect(() => {
-    const tzOffset = `${new Date().getTimezoneOffset()}m`
+    const tzOffset = '-60m' //`${new Date().getTimezoneOffset()}m`
     const load = () => {
       batch(() => {
         dispatch(
