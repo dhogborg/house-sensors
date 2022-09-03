@@ -3,3 +3,7 @@
 backup
 node_modules
 iCloud
+.npm
+workdir
+build
+backup.env
