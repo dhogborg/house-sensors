@@ -26,6 +26,7 @@ export default function PowerUseBars(props: { height: number }) {
   const priceState = useAppSelector(tibber.selector)
 
   useEffect(() => {
+    const tzOffset = `${new Date().getTimezoneOffset()}m`
     const load = () => {
       batch(() => {
         dispatch(
@@ -34,11 +35,12 @@ export default function PowerUseBars(props: { height: number }) {
             category: 'Värmepump',
             query: `
           from(bucket: "energy/autogen")
-            |> range(start: -24h)
+            |> range(start: -23h)
             |> filter(fn: (r) => r._measurement == "heating" and (r._field == "power"))
             |> aggregateWindow(every: 1m, fn: mean)
             |> fill(value: 0.0)
             |> aggregateWindow(every: 1h, fn: mean)
+            |> timeShift(duration: ${tzOffset})
             |> yield(name: "heating")
           `,
           }),
@@ -49,10 +51,11 @@ export default function PowerUseBars(props: { height: number }) {
             category: 'Övrigt',
             query: `
           from(bucket: "energy/autogen")
-            |> range(start: -24h)
+            |> range(start: -23h)
             |> filter(fn: (r) => r._measurement == "electricity" and (r._field == "power"))
             |> filter(fn: (r) => r.phase == "combined")
             |> aggregateWindow(every: 1h, fn: mean)
+            |> timeShift(duration: ${tzOffset})
             |> fill(value: 0.0)
             |> yield(name: "electricity")
           `,

@@ -68,12 +68,21 @@ export const getFluxQuery = createAsyncThunk<
   const values: Series['values'] = rows
     .map((row) => toObj(row))
     .map((row) => {
+      const t = row['_time'] as string
+
       return {
-        time: row['_time'] as string,
+        time: t,
         value: Number(row['_value']),
         category: args.category || (row['_measurement'] as string),
       }
     })
+
+  // clamp the last row to the current hour
+  if (values.length > 1) {
+    const d = new Date(values[values.length - 2].time)
+    d.setHours(d.getHours() + 1)
+    values[values.length - 1].time = d.toJSON()
+  }
 
   const series: Series = {
     id: args.id,
@@ -82,10 +91,8 @@ export const getFluxQuery = createAsyncThunk<
     tags: {},
     columns: [],
 
-    values: values.slice(0, values.length - 1),
+    values: values.slice(0, values.length),
   }
-
-  console.log(series)
 
   return [series]
 })
