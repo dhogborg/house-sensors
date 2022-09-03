@@ -61,25 +61,17 @@ services:
 
 
   influxdb:
-    image: influxdb:1.8.10-alpine
+    image: influxdb:1.8.10
     platform: linux/amd64
     restart: always
     volumes:
       - influxdb-data:/var/lib/influxdb
       - ${PWD}/backup:/backup
+      - ${PWD}/restore:/restore
     environment:
       - INFLUXDB_HTTP_FLUX_ENABLED=true
     ports:
       - 8086:8086
-
-  influx_worker:
-    image: influxdb:1.8-alpine
-    entrypoint: /bin/bash
-    stdin_open: true # docker run -i
-    tty: true # docker run -t
-    volumes:
-      - influxdb-data:/var/lib/influxdb
-      - ${PWD}/workdir:/workdir
 
   chronograf:
     image: chronograf:1.9.3
