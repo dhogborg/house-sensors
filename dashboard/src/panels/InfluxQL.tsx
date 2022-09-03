@@ -399,6 +399,12 @@ export function PowerUse(props: { height: number }) {
         };
       });
 
+      // calculate the amount used last hour before the hour is complete by multiplying by the
+      // percentage of the hour that has passed.
+      const d = new Date();
+      let last = values[values.length - 1];
+      last.value = (d.getMinutes() / 60) * last.value;
+
       return data.concat(values);
     }, []);
 
@@ -416,6 +422,12 @@ export function PowerUse(props: { height: number }) {
           value: v,
         };
       });
+
+      // calculate the amount used last hour before the hour is complete by multiplying by the
+      // percentage of the hour that has passed.
+      const d = new Date();
+      let last = values[values.length - 1];
+      last.value = (d.getMinutes() / 60) * last.value;
 
       return data.concat(values);
     }, []);
