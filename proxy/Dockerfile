@@ -1,6 +1,6 @@
 FROM golang as builder
 
-COPY proxy /workdir
+COPY . /workdir
 
 WORKDIR /workdir
 RUN GOOS=linux GOARCH=amd64 go build -o proxy *.go 

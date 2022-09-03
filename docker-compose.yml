@@ -17,13 +17,11 @@ services:
       - 1880:1880
 
   proxy:
-    image: dhogborg/proxy
-    build:
-      dockerfile: proxy/Dockerfile
-      context: ./
+    image: dhogborg/influx-cors-proxy:latest
+    platform: linux/amd64
     restart: always
     ports:
-      - 9086:8086
+      - 9086:9086
     environment:
       - TARGET=http://influxdb:8086
 
