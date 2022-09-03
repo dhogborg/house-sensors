@@ -221,6 +221,10 @@ export default function PowerUseBars(props: { height: number }) {
     },
 
     tooltip: {
+      title: (title, datum) => {
+        const d = new Date(datum.time)
+        return d.toLocaleDateString('sv-se') + ' ' + d.toLocaleTimeString()
+      },
       formatter: (datum) => {
         return {
           name: datum.category,

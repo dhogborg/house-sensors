@@ -22,7 +22,7 @@ export default function OutdoorTemperature(props: { height: number }) {
         influxdb.getQuery({
           id: 'outdoor',
           db: 'sensors',
-          query: `SELECT mean("value") AS "temperature" FROM "sensors"."autogen"."temperature" WHERE time > now() - 24h AND "name"='Outdoor' GROUP BY time(10m), "name" FILL(previous)`,
+          query: `SELECT mean("value") AS "temperature" FROM "sensors"."autogen"."temperature" WHERE time > now() - 24h AND "name"='Outdoor' GROUP BY time(10m), "source" FILL(previous)`,
         }),
       )
     }
@@ -51,12 +51,42 @@ export default function OutdoorTemperature(props: { height: number }) {
     }
   }, [dispatch])
 
-  let values = query.series?.[0]?.values || []
-  let current = 0
+  let current: {
+    [key: string]: number
+  } = {}
+  let values: influxdb.Series['values'] = []
+
+  if (query.series) {
+    values = query.series.reduce<influxdb.Series['values']>((prev, series) => {
+      if (series.tags.source === 'Netatmo') {
+        current.netatmo = series.values[series.values.length - 1]?.value
+      }
+      if (series.tags.source === 'Aqara') {
+        current.aqara = series.values[series.values.length - 1]?.value
+      }
+
+      return prev.concat(
+        series.values.map((v) => {
+          return {
+            ...v,
+            category: series.tags.source,
+          }
+        }),
+      )
+    }, [])
+  }
+
   let annotation = '-'
-  if (values.length > 0) {
-    current = values[values.length - 1].value
-    annotation = formatNumber(current, '°')
+
+  const meanCount = Object.keys(current).length
+  const currentMean = Object.keys(current)
+    .map((k) => current[k])
+    .reduce((prev, curr) => {
+      return prev + curr
+    }, 0)
+
+  if (meanCount > 0) {
+    annotation = formatNumber(currentMean / meanCount, '°', { precision: 1 })
   }
 
   let weather = ''
@@ -74,8 +104,10 @@ export default function OutdoorTemperature(props: { height: number }) {
     xField: 'time',
     yField: 'value',
     padding: 'auto',
-    color: ['#09790a'],
+    color: ['rgba(9, 121, 119, 0.2)', 'rgba(9, 121, 10,1)'],
+    isStack: false,
 
+    state: {},
     line: {
       style: {
         lineWidth: 6,
@@ -84,15 +116,29 @@ export default function OutdoorTemperature(props: { height: number }) {
 
     animation: false,
 
-    areaStyle: () => {
-      return {
-        fill: 'l(270) 0:#000000 1:#09790a',
+    areaStyle: (value) => {
+      switch (value.category) {
+        case 'Netatmo':
+          return {
+            fill: 'l(270) 0:#000000 1:#09790a',
+          }
+        default:
+          return {
+            fill: 'rgba(0,0,0,0)',
+          }
       }
     },
 
     tooltip: {
+      title: (title, datum) => {
+        const d = new Date(datum.time)
+        return d.toLocaleDateString('sv-se') + ' ' + d.toLocaleTimeString()
+      },
       formatter: (datum) => {
-        return { name: datum.category, value: formatNumber(datum.value, '°') }
+        return {
+          name: datum.category,
+          value: formatNumber(datum.value, '°', { precision: 1 }),
+        }
       },
     },
 
@@ -154,7 +200,7 @@ export default function OutdoorTemperature(props: { height: number }) {
           style: {
             radius: 4,
             fill:
-              current > 0
+              current === undefined || currentMean > 0
                 ? 'rgba(125, 227, 144, 0.6)'
                 : 'rgba(92, 201, 245, 1.00)',
           },

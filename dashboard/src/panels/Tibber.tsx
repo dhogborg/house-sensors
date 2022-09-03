@@ -184,6 +184,10 @@ export default function PriceBars(props: { height: number }) {
     legend: false,
 
     tooltip: {
+      title: (title, datum) => {
+        const d = new Date(datum.startsAt)
+        return d.toLocaleDateString('sv-se') + ' ' + d.toLocaleTimeString()
+      },
       formatter: (datum) => {
         return {
           name: datum.category,

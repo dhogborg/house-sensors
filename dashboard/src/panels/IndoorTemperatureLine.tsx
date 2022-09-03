@@ -13,6 +13,16 @@ export default function IndoorTemperature(props: { height: number }) {
   const query = useAppSelector(influxdb.selectQuery('indoor'), deepEqual)
 
   useEffect(() => {
+    const load = () => {
+      dispatch(
+        influxdb.getQuery({
+          id: 'indoor',
+          db: 'sensors',
+          query: `SELECT mean("value") AS "mean_value" FROM "sensors"."autogen"."temperature" WHERE time > ${time} AND ("name"='Värmepump' OR "name"='Övervåning' OR "name"='Vardagsrum' OR "name"='Gästrum') AND ("source" ='Tado' OR "source" = 'Aqara') GROUP BY time(5m), "name" FILL(previous)`,
+        }),
+      )
+    }
+
     load()
 
     const r = setInterval(() => {
@@ -21,17 +31,7 @@ export default function IndoorTemperature(props: { height: number }) {
     return () => {
       clearInterval(r)
     }
-  }, [])
-
-  const load = () => {
-    dispatch(
-      influxdb.getQuery({
-        id: 'indoor',
-        db: 'sensors',
-        query: `SELECT mean("value") AS "mean_value" FROM "sensors"."autogen"."temperature" WHERE time > ${time} AND ("name"='Värmepump' OR "name"='Övervåning' OR "name"='Vardagsrum') AND ("source" ='Tado' OR "source" = 'Aqara') GROUP BY time(5m), "name" FILL(previous)`,
-      }),
-    )
-  }
+  }, [dispatch])
 
   let data: influxdb.Series['values'] = []
   if (query.series?.length > 0) {
@@ -48,8 +48,9 @@ export default function IndoorTemperature(props: { height: number }) {
     seriesField: 'category',
     theme,
     height: props.height,
+    smooth: true,
 
-    color: ['#30b673', '#be3d5e', '#4e5cbc'],
+    color: ['#3481c9', '#30b673', '#be3d5e', '#4e5cbc'],
     yAxis: {
       min: 15,
     },
@@ -57,6 +58,10 @@ export default function IndoorTemperature(props: { height: number }) {
     animation: false,
 
     tooltip: {
+      title: (title, datum) => {
+        const d = new Date(datum.time)
+        return d.toLocaleDateString('sv-se') + ' ' + d.toLocaleTimeString()
+      },
       formatter: (datum) => {
         return {
           name: datum.category,
