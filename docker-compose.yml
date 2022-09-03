@@ -24,20 +24,20 @@ services:
     environment:
       - TARGET=http://influxdb:8086
 
-  verisure-mqtt:
-    image: mountaindude/verisure-mqtt:latest
-    restart: always
-    depends_on:
-      - mqtt
-    # Set debug flag to true to output all received info to console.
-    # False will limit output to only mention that a query to the Verisure API is made
-    environment:
-      - "VERISURE_DEBUG=true"
-      - "MQTT_BROKER_HOST=house-sensors_mqtt_1"
-      - "MQTT_BROKER_PORT=1883"
-      - "MQTT_ROOT_TOPIC=sensors/"
-      - "VERISURE_USERNAME=${VERISURE_USERNAME}"
-      - "VERISURE_PWD=${VERISURE_PASSWORD}"
+  # verisure-mqtt:
+  #   image: mountaindude/verisure-mqtt:latest
+  #   restart: always
+  #   depends_on:
+  #     - mqtt
+  #   # Set debug flag to true to output all received info to console.
+  #   # False will limit output to only mention that a query to the Verisure API is made
+  #   environment:
+  #     - "VERISURE_DEBUG=true"
+  #     - "MQTT_BROKER_HOST=house-sensors_mqtt_1"
+  #     - "MQTT_BROKER_PORT=1883"
+  #     - "MQTT_ROOT_TOPIC=sensors/"
+  #     - "VERISURE_USERNAME=${VERISURE_USERNAME}"
+  #     - "VERISURE_PWD=${VERISURE_PASSWORD}"
 
   mqtt:
     image: eclipse-mosquitto:2
