@@ -217,19 +217,23 @@ export const slice = createSlice({
   },
 })
 
-const INFLUX_ENDPOINT = 'http://thirteen.lan'
+const INFLUX_ENDPOINT = 'http://192.168.116.232:9086'
 
 type FluxResponse = string
 
 async function fluxQuery(args: { query: string }): Promise<FluxResponse> {
-  const response = await handledFetch(`${INFLUX_ENDPOINT}:9086/api/v2/query`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/csv',
-      'Content-type': 'application/vnd.flux',
+  const response = await handledFetch(
+    `${INFLUX_ENDPOINT}/api/v2/query?org=house`,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'application/csv',
+        'Content-type': 'application/vnd.flux',
+        Authorization: 'bearer ' + process.env.REACT_APP_INFLUXDB_TOKEN,
+      },
+      body: args.query,
     },
-    body: args.query,
-  })
+  )
 
   return response.text()
 }
@@ -248,13 +252,16 @@ interface Response {
 
 async function query(args: { query: string; db: string }): Promise<Response> {
   const request = [
+    `org=house`,
     `db=${encodeURIComponent(args.db)}`,
     `q=${encodeURIComponent(args.query)}`,
   ].join('&')
 
-  const response = await handledFetch(
-    `${INFLUX_ENDPOINT}:8086/query?pretty=true&${request}`,
-  )
+  const response = await handledFetch(`${INFLUX_ENDPOINT}/query?${request}`, {
+    headers: {
+      Authorization: 'Token ' + process.env.REACT_APP_INFLUXDB_TOKEN,
+    },
+  })
   return await response.json()
 }
 

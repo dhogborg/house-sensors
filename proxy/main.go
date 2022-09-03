@@ -26,12 +26,12 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// fmt.Printf("%s: %s\n", r.Method, r.URL)
-
+		// fmt.Printf("%s header: %s\n", r.Method, r.Header.Get("Access-Control-Allow-Origin"))
 		// This workaround is based on this configuration: https://enable-cors.org/server_nginx.html
 		if r.Method == "OPTIONS" {
 			w.Header().Add("Access-Control-Allow-Origin", "*")
 			w.Header().Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Add("Access-Control-Allow-Headers", "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range")
+			w.Header().Add("Access-Control-Allow-Headers", "*")
 			w.Header().Add("Access-Control-Max-Age", "1728000")
 			w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 			w.Header().Add("Content-Length", "0")
@@ -41,18 +41,20 @@ func main() {
 
 		if r.Method == "POST" {
 			// This header is deliberately omitted since the influx server also sets it on response
-			// w.Header().Add("Access-Control-Allow-Origin", "*")
+			// 	w.Header().Add("Access-Control-Allow-Origin", "*")
 			w.Header().Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Add("Access-Control-Allow-Headers", "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range")
+			w.Header().Add("Access-Control-Allow-Headers", "*")
 			w.Header().Add("Access-Control-Expose-Headers", "Content-Length,Content-Range")
 		}
 		if r.Method == "GET" {
-			// This header is deliberately omitted since the influx server also sets it on response
-			// w.Header().Add("Access-Control-Allow-Origin", "*")
+
+			w.Header().Add("Access-Control-Allow-Origin", "*")
 			w.Header().Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Add("Access-Control-Allow-Headers", "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range")
+			w.Header().Add("Access-Control-Allow-Headers", "*")
 			w.Header().Add("Access-Control-Expose-Headers", "Content-Length,Content-Range")
 		}
+
+		w.Header().Add("Authorization", r.Header.Get("Authorization"))
 
 		proxy.ServeHTTP(w, r)
 	})
