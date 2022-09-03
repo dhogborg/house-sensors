@@ -8,4 +8,5 @@ workdir
 build
 backup.env
 restore
-tokens.env
+backup.env
+_cred.json

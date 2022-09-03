@@ -1,4 +1,3 @@
-import { errorString } from '@lib/helpers'
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 
 import { handledFetch } from '../http'
