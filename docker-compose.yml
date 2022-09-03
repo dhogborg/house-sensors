@@ -16,6 +16,17 @@ services:
     ports:
       - 1880:1880
 
+  proxy:
+    image: dhogborg/proxy
+    build:
+      dockerfile: proxy/Dockerfile
+      context: ./
+    restart: always
+    ports:
+      - 9086:8086
+    environment:
+      - TARGET=http://influxdb:8086
+
   verisure-mqtt:
     image: mountaindude/verisure-mqtt:latest
     restart: always
@@ -51,7 +62,7 @@ services:
 
 
   influxdb:
-    image: influxdb:1.8-alpine
+    image: influxdb:1.8.10
     platform: linux/amd64
     restart: always
     volumes:

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { batch } from 'react-redux'
 
-import { refresh, time, theme } from '@lib/config'
+import { refresh, theme } from '@lib/config'
 import { deepEqual, formatNumber } from '@lib/helpers'
 import { useAppDispatch, useAppSelector } from '@lib/hooks'
 
@@ -9,6 +9,8 @@ import * as influxdb from '@lib/slices/influxdb'
 import * as tibber from '@lib/slices/tibber'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
+
+const time = 'now() - 24h'
 
 export default function PowerUseBars(props: { height: number }) {
   const dispatch = useAppDispatch()
@@ -26,12 +28,26 @@ export default function PowerUseBars(props: { height: number }) {
   useEffect(() => {
     const load = () => {
       batch(() => {
+        // dispatch(
+        //   influxdb.getQuery({
+        //     id: 'heatpumpConsumed',
+        //     db: 'energy',
+        //     categories: ['Värmepump'],
+        //     query: `SELECT mean("power") as "Heating" FROM "energy"."autogen"."heating" WHERE time > ${time} AND "type"='heatpump' GROUP BY time(1h) FILL(0)`,
+        //   }),
+        // )
         dispatch(
-          influxdb.getQuery({
+          influxdb.getFluxQuery({
             id: 'heatpumpConsumed',
-            db: 'energy',
-            categories: ['Värmepump'],
-            query: `SELECT mean("power") as "Heating" FROM "energy"."autogen"."heating" WHERE time > ${time} AND "type"='heatpump' GROUP BY time(1h) FILL(0)`,
+            query: `
+          from(bucket: "energy/autogen")
+            |> range(start: -24h)
+            |> filter(fn: (r) => r._measurement == "heating" and (r._field == "power"))
+            |> aggregateWindow(every: 1m, fn: mean)
+            |> fill(value: 0.0)
+            |> aggregateWindow(every: 1h, fn: mean)
+            |> yield(name: "heating")
+          `,
           }),
         )
         dispatch(
@@ -58,6 +74,7 @@ export default function PowerUseBars(props: { height: number }) {
   const heatpumpSeries = heatpumpQuery.series?.[0]
   const heatpumpData = heatpumpSeries?.values.map((hpValue, i) => {
     let kwh = Math.round(hpValue.value) / 1000
+    // last hour isn't complete, so we have to factor in the percentage of the hour that has passed
     if (i === heatpumpSeries.values.length - 1) {
       kwh = (new Date().getMinutes() / 60) * kwh
     }
@@ -75,19 +92,27 @@ export default function PowerUseBars(props: { height: number }) {
     let kwh = Math.round(totValue.value) / 1000
 
     const hpValue = heatpumpSeries?.values?.[i]?.value || 0
-    const hpKwh = Math.round(hpValue) / 1000
+    let hpKwh = Math.round(hpValue) / 1000
 
-    // subtract the known consumers
-    if (kwh - hpKwh > 0) {
-      kwh = kwh - hpKwh
+    // last hour isn't complete, so we have to factor in the percentage of the hour that has passed
+    if (i === totalSeries.values.length - 1) {
+      const hourPassed = new Date().getMinutes() / 60
+      kwh = hourPassed * kwh
+      hpKwh = hourPassed * hpKwh
     }
 
-    if (i === totalSeries.values.length - 1) {
-      kwh = (new Date().getMinutes() / 60) * kwh
+    // subtract the known consumers
+    kwh = kwh - hpKwh
+
+    // if the value becomes negative then an measurement error has occurred.
+    // cap the "other" to 0.
+    if (kwh < 0) {
+      kwh = 0
     }
 
     return {
-      ...totValue,
+      time: totValue.time,
+      category: totValue.category,
       value: kwh,
     }
   })
@@ -143,6 +168,7 @@ export default function PowerUseBars(props: { height: number }) {
       })[0]
 
       if (i === total.length - 1) {
+        // last hour isn't complete, so factor in the percentage of the hour that has passed
         kwh = (new Date().getMinutes() / 60) * kwh
         priceNode = priceState.current!
       }
@@ -162,8 +188,8 @@ export default function PowerUseBars(props: { height: number }) {
 
         position: (xScale, yScale: any) => {
           return [
-            `${2 + i * 4}%`,
-            `${100 - Math.round((kwh / yScale.value.max) * 100)}%`,
+            `${2 + i * 4}%`, // left
+            `${100 - Math.round((kwh / yScale.value.max) * 100)}%`, // top
           ]
         },
 
