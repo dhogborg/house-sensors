@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Column, ColumnConfig } from "@ant-design/charts";
 
 import * as tibber from "@lib/tibber";
+import { formatNumber } from "@lib/helpers";
 
 export function PriceGraph(props: { height: number }) {
   const [state, setState] = useState<{ current?: number; priceData: any[] }>({
@@ -71,6 +72,15 @@ export function PriceGraph(props: { height: number }) {
     label: undefined,
 
     legend: false,
+
+    tooltip: {
+      formatter: (datum) => {
+        return {
+          name: datum.category,
+          value: formatNumber(datum.price, " öre", { precision: 0 }),
+        };
+      },
+    },
 
     annotations: [
       {
