@@ -217,7 +217,7 @@ export function PowerCombined(props: { height: number }) {
   const load = async () => {
     const t = await influxdb.query({
       db: "energy",
-      query: `SELECT power FROM "energy"."autogen"."electricity" WHERE time > now() - 1m AND "phase"='combined' LIMIT 1`,
+      query: `SELECT "power" FROM "energy"."autogen"."electricity" WHERE time > now() - 1m AND "phase"='combined' ORDER BY time DESC LIMIT 1`,
     });
 
     const power: number = t.results[0]?.series[0]?.values[0][1] || 0;
@@ -295,7 +295,7 @@ export function PowerHeatPump(props: { height: number }) {
   const load = async () => {
     const t = await influxdb.query({
       db: "energy",
-      query: `SELECT power FROM "energy"."autogen"."heating" WHERE time > now() - 1m AND "type"='heatpump' LIMIT 1`,
+      query: `SELECT "power" FROM "energy"."autogen"."heating" WHERE time > now() - 1m AND "type"='heatpump' ORDER BY time DESC LIMIT 1`,
     });
 
     const power: number = t.results[0]?.series[0]?.values[0][1] || 0;
