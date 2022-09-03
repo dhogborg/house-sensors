@@ -1,16 +1,22 @@
-import { Row, Col } from 'antd'
-
 import './App.less'
+
+import { Col, Row } from 'antd'
+import { useEffect } from 'react'
 
 import IndoorTemperature from './panels/IndoorTemperatureLine'
 import OutdoorTemperature from './panels/OutdoorTemperatureLine'
-import PowerUseBars from './panels/PowerUseBars'
 import { PowerCombined, PowerHeatPump } from './panels/PowerGauges'
-
+import PowerUseBars from './panels/PowerUseBars'
 import PriceBars from './panels/Tibber'
 
 function App() {
   const gutter = 0
+  useEffect(() => {
+    setTimeout(() => {
+      window.location.reload()
+    }, 1000 * 60 * 120)
+  }, [])
+
   return (
     <div className="App">
       <div id="Grid">
