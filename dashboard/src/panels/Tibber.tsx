@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
 
@@ -11,18 +11,14 @@ export default function PriceBars(props: { height: number }) {
   const store = useAppSelector(tibber.selector)
 
   useEffect(() => {
-    load()
+    dispatch(tibber.get())
     const r = setInterval(() => {
-      load()
+      dispatch(tibber.get())
     }, 5 * 60 * 1000)
     return () => {
       clearInterval(r)
     }
-  }, [])
-
-  const load = () => {
-    dispatch(tibber.get())
-  }
+  }, [dispatch])
 
   const current = Math.round(100 * (store.current?.total || 0))
   console.log({ current })

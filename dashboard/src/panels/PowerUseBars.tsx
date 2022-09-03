@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { batch } from 'react-redux'
 
 import { refresh, time, theme } from '@lib/config'
 import { deepEqual, formatNumber } from '@lib/helpers'
@@ -23,6 +24,27 @@ export default function PowerUseBars(props: { height: number }) {
   const priceState = useAppSelector(tibber.selector)
 
   useEffect(() => {
+    const load = () => {
+      batch(() => {
+        dispatch(
+          influxdb.getQuery({
+            id: 'heatpumpConsumed',
+            db: 'energy',
+            categories: ['Värmepump'],
+            query: `SELECT mean("power") as "Heating" FROM "energy"."autogen"."heating" WHERE time > ${time} AND "type"='heatpump' GROUP BY time(1h) FILL(0)`,
+          }),
+        )
+        dispatch(
+          influxdb.getQuery({
+            id: 'totalConsumed',
+            db: 'energy',
+            categories: ['Övrigt'],
+            query: `SELECT mean("power") as "Consumption" FROM "energy"."autogen"."electricity" WHERE time > ${time} AND "phase"='combined' GROUP BY time(1h) FILL(0)`,
+          }),
+        )
+      })
+    }
+
     load()
 
     const r = setInterval(() => {
@@ -31,31 +53,12 @@ export default function PowerUseBars(props: { height: number }) {
     return () => {
       clearInterval(r)
     }
-  }, [])
-
-  const load = () => {
-    dispatch(
-      influxdb.getQuery({
-        id: 'heatpumpConsumed',
-        db: 'energy',
-        categories: ['Värmepump'],
-        query: `SELECT mean("power") as "Heating" FROM "energy"."autogen"."heating" WHERE time > ${time} AND "type"='heatpump' GROUP BY time(1h) FILL(0)`,
-      }),
-    )
-    dispatch(
-      influxdb.getQuery({
-        id: 'totalConsumed',
-        db: 'energy',
-        categories: ['Övrigt'],
-        query: `SELECT mean("power") as "Consumption" FROM "energy"."autogen"."electricity" WHERE time > ${time} AND "phase"='combined' GROUP BY time(1h) FILL(0)`,
-      }),
-    )
-  }
+  }, [dispatch])
 
   const heatpumpSeries = heatpumpQuery.series?.[0]
   const heatpumpData = heatpumpSeries?.values.map((hpValue, i) => {
     let kwh = Math.round(hpValue.value) / 1000
-    if (i == heatpumpSeries.values.length - 1) {
+    if (i === heatpumpSeries.values.length - 1) {
       kwh = (new Date().getMinutes() / 60) * kwh
     }
     return {
@@ -79,7 +82,7 @@ export default function PowerUseBars(props: { height: number }) {
       kwh = kwh - hpKwh
     }
 
-    if (i == totalSeries.values.length - 1) {
+    if (i === totalSeries.values.length - 1) {
       kwh = (new Date().getMinutes() / 60) * kwh
     }
 
@@ -128,7 +131,7 @@ export default function PowerUseBars(props: { height: number }) {
       let kwh = hour.value / 1000
       const time = hour.time
 
-      if (i == total.length - 1) {
+      if (i === total.length - 1) {
         kwh = (new Date().getMinutes() / 60) * kwh
       }
 

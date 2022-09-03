@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 
-import { refresh, time, theme } from '@lib/config'
 import { deepEqual, formatNumber } from '@lib/helpers'
 import { useAppDispatch, useAppSelector } from '@lib/hooks'
 
@@ -13,6 +12,16 @@ export function PowerCombined(props: { height: number }) {
   const query = useAppSelector(influxdb.selectQuery('power'), deepEqual)
 
   useEffect(() => {
+    const load = () => {
+      dispatch(
+        influxdb.getQuery({
+          id: 'power',
+          db: 'energy',
+          query: `SELECT "power" FROM "energy"."autogen"."electricity" WHERE time > now() - 1m AND "phase"='combined' ORDER BY time DESC LIMIT 1`,
+        }),
+      )
+    }
+
     load()
 
     const r = setInterval(() => {
@@ -21,17 +30,7 @@ export function PowerCombined(props: { height: number }) {
     return () => {
       clearInterval(r)
     }
-  }, [])
-
-  const load = () => {
-    dispatch(
-      influxdb.getQuery({
-        id: 'power',
-        db: 'energy',
-        query: `SELECT "power" FROM "energy"."autogen"."electricity" WHERE time > now() - 1m AND "phase"='combined' ORDER BY time DESC LIMIT 1`,
-      }),
-    )
-  }
+  }, [dispatch])
 
   const power = query.series?.[0]?.values?.[0]?.value || 0
   const max = 9000
