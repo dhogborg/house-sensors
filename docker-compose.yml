@@ -39,6 +39,16 @@ services:
     ports:
       - 1883:1883
       - 9001:9001
+  
+  dashboard:
+    image: dhogborg/house-dashboard:latest
+    platform: linux/amd64
+    restart: always
+    depends_on:
+      - influxdb
+    ports:
+      - 80:80
+
 
   influxdb:
     image: influxdb:1.8-alpine
