@@ -105,7 +105,7 @@ export function PowerHeatPump(props: { height: number }) {
       influxdb.getQuery({
         id: 'heatpump',
         db: 'energy',
-        query: `SELECT "power" FROM "energy"."autogen"."heating" WHERE time > now() - 1m AND "type"='heatpump' ORDER BY time DESC LIMIT 1`,
+        query: `SELECT "power" FROM "energy"."autogen"."heating" WHERE time > now() - 5m AND "type"='heatpump' ORDER BY time DESC LIMIT 1`,
       }),
     )
   }
