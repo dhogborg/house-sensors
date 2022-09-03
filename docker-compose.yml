@@ -62,7 +62,7 @@ services:
 
 
   influxdb:
-    image: influxdb:1.8.10
+    image: influxdb:1.8.10-alpine
     platform: linux/amd64
     restart: always
     volumes:
