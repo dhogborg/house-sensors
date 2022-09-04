@@ -5,9 +5,10 @@ import { useEffect } from 'react'
 
 import IndoorTemperature from './panels/IndoorTemperatureLine'
 import OutdoorTemperature from './panels/OutdoorTemperatureLine'
-import { PowerCombined, PowerHeatPump } from './panels/PowerGauges'
+import { PowerLive } from './panels/PowerGauges'
 import PowerUseBars from './panels/PowerUseBars'
 import PriceBars from './panels/Tibber'
+import Summary from './panels/Summary'
 
 function App() {
   const gutter = 0
@@ -30,10 +31,10 @@ function App() {
         </Row>
         <Row gutter={gutter}>
           <Col md={6}>
-            <PowerCombined height={225} />
+            <PowerLive height={225} />
           </Col>
           <Col md={6}>
-            <PowerHeatPump height={225} />
+            <Summary height={235} />
           </Col>
           <Col md={12}>
             <PriceBars height={225} />
