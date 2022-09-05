@@ -103,6 +103,7 @@ export default function PriceBars(props: { height: number }) {
   let lowIndex = -1
   let highNode: priceNode | undefined
   let highIndex = -1
+  let mean = 0
   priceData
     .filter((node) => {
       return node.category === 'buy_price'
@@ -117,6 +118,12 @@ export default function PriceBars(props: { height: number }) {
         highNode = node
         highIndex = i
       }
+
+      if (i === 0) {
+        mean = node.price
+      } else {
+        mean = (mean + node.price) / 2
+      }
     })
 
   priceData.push({
@@ -129,8 +136,8 @@ export default function PriceBars(props: { height: number }) {
 
   annotations.push({
     type: 'line',
-    start: ['min', 100],
-    end: ['max', 100],
+    start: ['min', mean],
+    end: ['max', mean],
     style: {
       lineWidth: 1,
       stroke: '#F4664A',
