@@ -92,13 +92,16 @@ export const get = createAsyncThunk<
   }`
     const result = await doRequest<PriceResult>(query)
     const activeHome = result.viewer.homes.find((home) => {
-      if (home.currentSubscription.priceInfo.current) {
+      if (home.currentSubscription?.priceInfo?.current) {
         return true
       }
       return false
     })
 
-    return activeHome!.currentSubscription.priceInfo
+    if (!activeHome) {
+      throw new Error('no subscription found')
+    }
+    return activeHome.currentSubscription.priceInfo
   },
   {
     condition: (arg, { getState }): boolean => {

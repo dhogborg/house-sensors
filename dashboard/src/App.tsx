@@ -22,27 +22,27 @@ function App() {
     <div className="App">
       <div id="Grid">
         <Row gutter={gutter}>
-          <Col md={12}>
+          <Col xs={24} md={12}>
             <OutdoorTemperature height={250} />
           </Col>
-          <Col md={12}>
+          <Col xs={24} md={12}>
             <IndoorTemperature height={250} />
           </Col>
         </Row>
         <Row gutter={gutter}>
-          <Col md={6}>
+          <Col xs={24} md={6}>
             <PowerLive height={225} />
           </Col>
-          <Col md={6}>
+          <Col xs={24} md={6}>
             <Summary height={235} />
           </Col>
-          <Col md={12}>
+          <Col xs={24} md={12}>
             <PriceBars height={225} />
           </Col>
         </Row>
 
         <Row gutter={gutter}>
-          <Col md={24}>
+          <Col xs={24} md={24}>
             <PowerUseBars height={250} />
           </Col>
         </Row>
