@@ -9,6 +9,7 @@ import * as influxdb from '@lib/slices/influxdb'
 
 import { Gauge, GaugeConfig } from '@ant-design/charts'
 import { SerializedError } from '@reduxjs/toolkit'
+import { MultiGauge } from './components/MultiGuage'
 
 export function PowerLive(props: { height: number }) {
   const [power, setPower] = useState(0)
@@ -39,54 +40,31 @@ export function PowerLive(props: { height: number }) {
   }, [setPower])
 
   const max = 9000
-  const percent = power / max
-
-  const config: GaugeConfig = {
-    height: props.height,
-    percent: percent,
-
-    radius: 0.75,
-    range: {
-      color: percent === 0 ? '#e5e5e5' : '#30BF78',
-      width: 12,
-    },
-    indicator: undefined,
-
-    statistic: {
-      content: {
-        offsetY: -50,
-        style: {
-          fontSize: '24px',
-          color: 'white',
-        },
-        formatter: (datum, data) => {
-          const watts = Number(datum!.percent * max)
-          if (watts > 1000) {
-            return formatNumber(watts / 1000, ' kW', { precision: 2 })
-          }
-          return formatNumber(watts, ' W', { precision: 0 })
-        },
-      },
-      title: {
-        offsetY: 1,
-        style: {
-          fontSize: '14px',
-          color: '#ddd',
-        },
-        formatter: (datum, data) => {
-          return 'Nuvarande förbrk.'
-        },
-      },
-    },
-    gaugeStyle: {
-      lineCap: 'round',
-    },
+  const elements = []
+  if (power > 0) {
+    elements.push({
+      percentage: (power / max) * 100,
+      color: '#30BF78',
+    })
+  } else {
+    elements.push({
+      percentage: ((power * -1) / max) * 100,
+      color: 'rgb(231, 189, 105)',
+    })
   }
 
   return (
-    <div className="panel">
-      <Gauge {...config} />
-    </div>
+    <MultiGauge
+      height={props.height}
+      elements={elements}
+      statistic={() => {
+        if (power > 999 || power < -999) {
+          return formatNumber(power / 999, ' kW', { precision: 2 })
+        }
+        return formatNumber(power, ' W', { precision: 0 })
+      }}
+      title="Nuvarande förbrk."
+    />
   )
 }
 

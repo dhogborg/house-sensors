@@ -31,7 +31,7 @@ function App() {
         </Row>
         <Row gutter={gutter}>
           <Col xs={24} md={6}>
-            <PowerLive height={225} />
+            <PowerLive height={235} />
           </Col>
           <Col xs={24} md={6}>
             <Summary height={235} />
