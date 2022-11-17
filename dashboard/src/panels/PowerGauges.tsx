@@ -11,45 +11,90 @@ import { Gauge, GaugeConfig } from '@ant-design/charts'
 import { SerializedError } from '@reduxjs/toolkit'
 import { MultiGauge } from './components/MultiGuage'
 
+export const ColorSolar = '#fee1a7'
+export const ColorSell = '#30BF78'
+export const ColorBuy = '#f85e46'
+
 export function PowerLive(props: { height: number }) {
-  const [power, setPower] = useState(0)
+  const [solarPower, setSolarPower] = useState(0)
+  const [consumePower, setConsumePower] = useState(0)
+  const [gridPower, setGridPower] = useState(0)
+
   useEffect(() => {
     const client = mqtt.connect('mqtt://192.168.116.232:8083')
 
     client.on('connect', function () {
       console.log('connected')
 
-      client.subscribe(
-        'servicelocation/+/realtime',
-        function (err: SerializedError) {
-          if (err) {
-            console.error(err)
-          }
-        },
-      )
+      // client.subscribe(
+      //   'servicelocation/+/realtime',
+      //   function (err: SerializedError) {
+      //     if (err) {
+      //       console.error(err)
+      //     }
+      //   },
+      // )
+
+      client.subscribe('ehub', function (err: SerializedError) {
+        if (err) {
+          console.error(err)
+        }
+      })
     })
 
     client.on('message', function (topic: string, message: any) {
       // message is Buffer
       const payload = JSON.parse(message.toString())
-      setPower(payload.totalPower)
+
+      setSolarPower(() => {
+        return parseFloat(payload.ppv.val)
+      })
+      setConsumePower(() => {
+        return (
+          parseFloat(payload.pload['L1']) +
+          parseFloat(payload.pload['L2']) +
+          parseFloat(payload.pload['L3'])
+        )
+      })
+      setGridPower(() => {
+        return (
+          parseFloat(payload.pext['L1']) +
+          parseFloat(payload.pext['L2']) +
+          parseFloat(payload.pext['L3'])
+        )
+      })
     })
     return () => {
       client.end()
     }
-  }, [setPower])
+  }, [setSolarPower, setConsumePower, setGridPower])
 
   const max = 9000
+
   const elements = []
-  if (power > 0) {
+  if (solarPower > consumePower) {
+    // push a selling colored bar and a solar generating bar
     elements.push({
-      percentage: (power / max) * 100,
-      color: '#30BF78',
+      percentage: (solarPower / max) * 100,
+      color: ColorSell,
+      z: 2,
+    })
+    elements.push({
+      percentage: (consumePower / max) * 100,
+      color: ColorSolar,
+      z: 1,
     })
   } else {
+    // push a buy-bar, a consume bar and a solar bar
     elements.push({
-      percentage: ((power * -1) / max) * 100,
-      color: 'rgb(231, 189, 105)',
+      percentage: (consumePower / max) * 100,
+      color: ColorBuy,
+      z: 2,
+    })
+    elements.push({
+      percentage: (solarPower / max) * 100,
+      color: ColorSolar,
+      z: 1,
     })
   }
 
@@ -57,15 +102,26 @@ export function PowerLive(props: { height: number }) {
     <MultiGauge
       height={props.height}
       elements={elements}
-      statistic={() => {
-        if (power > 999 || power < -999) {
-          return formatNumber(power / 999, ' kW', { precision: 2 })
-        }
-        return formatNumber(power, ' W', { precision: 0 })
+      consume={() => {
+        return formatPower(consumePower)
+      }}
+      solar={() => {
+        return '☀️ ' + formatPower(solarPower)
+      }}
+      grid={() => {
+        const p = solarPower === 0 ? consumePower : gridPower
+        return '⚡️ ' + formatPower(p)
       }}
       title="Nuvarande förbrk."
     />
   )
+}
+
+function formatPower(power: number): string {
+  if (power > 999 || power < -999) {
+    return formatNumber(power / 999, ' kW', { precision: 2 })
+  }
+  return formatNumber(power, ' W', { precision: 0 })
 }
 
 export function PowerCombined(props: { height: number }) {

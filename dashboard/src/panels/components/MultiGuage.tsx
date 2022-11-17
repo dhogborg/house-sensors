@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ColorSolar } from '../PowerGauges'
 
 export interface MultiGaugeProps {
   height: number
@@ -16,8 +17,10 @@ export interface MultiGaugeProps {
   title?: string
   titleStyle?: string
 
-  statistic?: () => string
-  statisticStyle?: string
+  // display values
+  consume?: () => string
+  solar?: () => string
+  grid?: () => string
 }
 
 const defaultColors = ['#BDD9BF', '#FFC857', '#2E4052', '#CCC5B9', '#FFFCF2']
@@ -82,7 +85,7 @@ export const MultiGauge = function (props: MultiGaugeProps) {
 
       context.strokeStyle = color
       context.lineWidth = width + z
-      z++
+      z += 0.25
 
       context.stroke()
     }
@@ -105,12 +108,39 @@ export const MultiGauge = function (props: MultiGaugeProps) {
       context.fillText(props.title, canvas.width * 0.5, canvas.height * 0.825)
     }
 
-    if (props.statistic) {
-      const s = props.statistic()
-      context.font = props.statisticStyle || '60px sans-serif'
+    const offsetTop = -0.06
+
+    if (props.solar) {
+      context.font = '30px sans-serif'
       context.fillStyle = '#ffffff'
       context.textAlign = 'center'
-      context.fillText(s, canvas.width * 0.5, canvas.height * 0.55)
+      context.fillText(
+        props.solar(),
+        canvas.width * 0.5,
+        canvas.height * (0.425 + offsetTop),
+      )
+    }
+
+    if (props.consume) {
+      context.font = '60px sans-serif'
+      context.fillStyle = '#ffffff'
+      context.textAlign = 'center'
+      context.fillText(
+        props.consume(),
+        canvas.width * 0.5,
+        canvas.height * (0.57 + offsetTop),
+      )
+    }
+
+    if (props.grid) {
+      context.font = '30px sans-serif'
+      context.fillStyle = '#ffffff'
+      context.textAlign = 'center'
+      context.fillText(
+        props.grid(),
+        canvas.width * 0.5,
+        canvas.height * (0.675 + offsetTop),
+      )
     }
   }, [canvas, props, width])
 

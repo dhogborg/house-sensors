@@ -107,9 +107,9 @@ export default function PowerUseBars(props: { height: number }) {
 
     // if the value becomes negative then an measurement error has occurred.
     // cap the "other" to 0.
-    if (kwh < 0) {
-      kwh = 0
-    }
+    // if (kwh < 0) {
+    //   kwh = 0
+    // }
 
     return {
       time: totValue.time,
@@ -129,12 +129,11 @@ export default function PowerUseBars(props: { height: number }) {
   let annotations: ColumnConfig['annotations'] = [
     {
       type: 'line',
-      start: ['min', 2],
-      end: ['max', 2],
+      start: ['min', 0],
+      end: ['max', 0],
       style: {
-        lineWidth: 2,
-        stroke: '#F4664A',
-        lineDash: [2, 2],
+        lineWidth: 1,
+        stroke: '#454545',
       },
     },
   ]
@@ -172,9 +171,21 @@ export default function PowerUseBars(props: { height: number }) {
         content: priceStr,
 
         position: (xScale, yScale: any) => {
+          const left = 2 + i * 4.1666
+
+          const range = yScale.value.max - yScale.value.min
+          const zeroLine = yScale.value.max / range
+
+          let top = 0
+          if (kwh > 0) {
+            top = zeroLine * 100 + 18
+          } else {
+            top = zeroLine * 100
+          }
+
           return [
-            `${2 + i * 4.1666}%`, // left
-            `${100 - Math.round((kwh / yScale.value.max) * 100)}%`, // top
+            `${left}%`, // left
+            `${top}%`, // top
           ]
         },
 
@@ -242,7 +253,9 @@ export default function PowerUseBars(props: { height: number }) {
         },
       },
     },
-    yAxis: {},
+    yAxis: {
+      // minLimit: -0.25,
+    },
     columnWidthRatio: 0.6,
   }
 
