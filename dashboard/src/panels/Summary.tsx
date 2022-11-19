@@ -118,18 +118,35 @@ export default function Summary(props: { height: number }) {
   }, [setHeatPower])
 
   const loadHours = loadPower?.series?.[0]?.values || []
-  const loadConsumed = loadHours.reduce((prev, curr) => {
-    return prev + curr.value
+  const loadConsumed = loadHours.reduce((prev, curr, i) => {
+    // this hour of the day?
+    let factor = 1
+    if (loadHours.length === i + 1) {
+      factor = new Date().getMinutes() / 60
+    }
+    return prev + curr.value * factor
   }, 0)
 
   const gridHours = gridPower?.series?.[0]?.values || []
-  const gridConsumed = gridHours.reduce((prev, curr) => {
-    return prev + curr.value
+  const gridConsumed = gridHours.reduce((prev, curr, i) => {
+    // this hour of the day?
+    let factor = 1
+    if (gridHours.length === i + 1) {
+      factor = new Date().getMinutes() / 60
+    }
+
+    return prev + curr.value * factor
   }, 0)
 
   const pvHours = pvPower?.series?.[0]?.values || []
-  const pvProduced = pvHours.reduce((prev, curr) => {
-    return prev + curr.value
+  const pvProduced = pvHours.reduce((prev, curr, i) => {
+    // this hour of the day?
+    let factor = 1
+    if (pvHours.length === i + 1) {
+      factor = new Date().getMinutes() / 60
+    }
+
+    return prev + curr.value * factor
   }, 0)
 
   let gridPeak = 0
