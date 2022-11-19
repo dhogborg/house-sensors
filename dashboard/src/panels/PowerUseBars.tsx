@@ -105,12 +105,6 @@ export default function PowerUseBars(props: { height: number }) {
     // subtract the known consumers
     kwh = kwh - hpKwh
 
-    // if the value becomes negative then an measurement error has occurred.
-    // cap the "other" to 0.
-    // if (kwh < 0) {
-    //   kwh = 0
-    // }
-
     return {
       time: totValue.time,
       category: totValue.category,
@@ -157,7 +151,10 @@ export default function PowerUseBars(props: { height: number }) {
         priceNode = priceState.current!
       }
 
-      const price = kwh > 0 ? priceNode.total : priceNode.total - priceNode.tax
+      let price = 0
+      if (priceNode) {
+        price = kwh > 0 ? priceNode.total : priceNode.total - priceNode.tax
+      }
 
       let priceStr = ''
       if (priceNode) {

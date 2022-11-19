@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { ColorSolar } from '../PowerGauges'
 
 export interface MultiGaugeProps {
   height: number
