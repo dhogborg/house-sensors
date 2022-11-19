@@ -157,14 +157,15 @@ export default function PowerUseBars(props: { height: number }) {
         priceNode = priceState.current!
       }
 
+      const price = kwh > 0 ? priceNode.total : priceNode.total - priceNode.tax
+
       let priceStr = ''
       if (priceNode) {
-        priceStr = Number(kwh * priceNode.total).toFixed(2)
+        priceStr = Number(kwh * price).toFixed(2)
       }
 
       let fill = 'rgba(0,0,0,0)'
-      if (priceNode?.total !== undefined)
-        fill = priceFill(kwh * priceNode.total)
+      if (priceNode?.total !== undefined) fill = priceFill(kwh * price)
 
       return {
         type: 'text',

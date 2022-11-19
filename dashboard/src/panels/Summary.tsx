@@ -12,8 +12,12 @@ import { SerializedError } from '@reduxjs/toolkit'
 
 export default function Summary(props: { height: number }) {
   const dispatch = useAppDispatch()
-  const power = useAppSelector(influxdb.selectQuery('summary'), deepEqual)
-  const monthHours = useAppSelector(
+  const loadPower = useAppSelector(influxdb.selectQuery('loadPower'), deepEqual)
+  const gridPower = useAppSelector(influxdb.selectQuery('gridPower'), deepEqual)
+  const pvPower = useAppSelector(influxdb.selectQuery('pvPower'), deepEqual)
+  const pvPeakPower = useAppSelector(influxdb.selectQuery('pvPeak'), deepEqual)
+
+  const monthGridHours = useAppSelector(
     influxdb.selectQuery('month_summary'),
     deepEqual,
   )
@@ -28,9 +32,33 @@ export default function Summary(props: { height: number }) {
     const load = () => {
       dispatch(
         influxdb.getQuery({
-          id: 'summary',
+          id: 'loadPower',
           db: 'energy',
-          query: `SELECT mean("power") FROM "energy"."autogen"."electricity" WHERE time > now() - ${sinceMidnight}m AND "phase"='combined' GROUP BY time(1h)`,
+          query: `SELECT mean("power") FROM "energy"."autogen"."load" WHERE time > now() - ${sinceMidnight}m AND "phase"='combined' GROUP BY time(1h)`,
+        }),
+      )
+
+      dispatch(
+        influxdb.getQuery({
+          id: 'gridPower',
+          db: 'energy',
+          query: `SELECT mean("power") FROM "energy"."autogen"."grid" WHERE time > now() - ${sinceMidnight}m AND "phase"='combined' GROUP BY time(1h)`,
+        }),
+      )
+
+      dispatch(
+        influxdb.getQuery({
+          id: 'pvPower',
+          db: 'energy',
+          query: `SELECT mean("power") FROM "energy"."autogen"."pv" WHERE time > now() - ${sinceMidnight}m GROUP BY time(1h)`,
+        }),
+      )
+
+      dispatch(
+        influxdb.getQuery({
+          id: 'pvPeak',
+          db: 'energy',
+          query: `SELECT max("power") FROM "energy"."autogen"."pv" WHERE time > now() - ${sinceMidnight}m GROUP BY time(24h) ORDER BY time DESC LIMIT 1`,
         }),
       )
 
@@ -38,7 +66,7 @@ export default function Summary(props: { height: number }) {
         influxdb.getQuery({
           id: 'month_summary',
           db: 'energy',
-          query: `SELECT mean("power") FROM "energy"."autogen"."electricity" WHERE time > now() - ${firstOtMonth}m AND "phase"='combined' GROUP BY time(1h)`,
+          query: `SELECT mean("power") FROM "energy"."autogen"."grid" WHERE time > now() - ${firstOtMonth}m AND "phase"='combined' GROUP BY time(1h)`,
         }),
       )
     }
@@ -58,7 +86,7 @@ export default function Summary(props: { height: number }) {
     const client = mqtt.connect('mqtt://192.168.116.232:8083')
 
     client.on('connect', function () {
-      console.log('connected zigbee')
+      console.log('mqtt connected')
 
       client.subscribe(
         'zigbee2mqtt/0x0004740000847cf5',
@@ -66,6 +94,7 @@ export default function Summary(props: { height: number }) {
           if (err) {
             console.error(err)
           }
+          console.log('subscribed topic: zigbee2mqtt/0x0004740000847cf5')
         },
       )
     })
@@ -88,20 +117,41 @@ export default function Summary(props: { height: number }) {
     }
   }, [setHeatPower])
 
-  const hours = power?.series?.[0]?.values
-
-  const consumed = hours?.reduce((prev, curr) => {
+  const loadHours = loadPower?.series?.[0]?.values || []
+  const loadConsumed = loadHours.reduce((prev, curr) => {
     return prev + curr.value
   }, 0)
 
-  let maxConsum = 0
-  hours?.forEach((h) => {
-    if (h.value > maxConsum) {
-      maxConsum = h.value
+  const gridHours = gridPower?.series?.[0]?.values || []
+  const gridConsumed = gridHours.reduce((prev, curr) => {
+    return prev + curr.value
+  }, 0)
+
+  const pvHours = pvPower?.series?.[0]?.values || []
+  const pvProduced = pvHours.reduce((prev, curr) => {
+    return prev + curr.value
+  }, 0)
+
+  let gridPeak = 0
+  gridHours.forEach((h) => {
+    if (h.value > gridPeak) {
+      gridPeak = h.value
     }
   })
 
-  const totalCost = hours?.reduce((prev, curr, i) => {
+  let pvPeak = 0
+  let pvPeakValues = pvPeakPower?.series?.[0]?.values
+  if (pvPeakValues) {
+    pvPeak = pvPeakValues
+      .filter((val) => {
+        return val.value != null
+      })
+      .map((val) => {
+        return val.value
+      })[0]
+  }
+
+  const gridCost = gridHours?.reduce((prev, curr, i) => {
     let priceNode = todayPrice.find((n) => {
       const d1 = new Date(n.startsAt)
       const d2 = new Date(curr.time)
@@ -115,14 +165,17 @@ export default function Summary(props: { height: number }) {
 
     // this hour of the day?
     let factor = 1
-    if (hours.length === i + 1) {
+    if (gridHours.length === i + 1) {
       factor = new Date().getMinutes() / 60
     }
 
-    return prev + (curr.value / 1000) * priceNode.total * factor
+    const price =
+      curr.value > 0 ? priceNode.total : priceNode.total - priceNode.tax
+
+    return prev + (curr.value / 1000) * price * factor
   }, 0)
 
-  const highHour = monthHours?.series?.[0]?.values.reduce((prev, curr) => {
+  const highHour = monthGridHours?.series?.[0]?.values.reduce((prev, curr) => {
     if (curr.value > prev) return curr.value
     return prev
   }, 0)
@@ -141,18 +194,22 @@ export default function Summary(props: { height: number }) {
         <Col span={12}>
           <dl>
             <dt>Förbrukat: </dt>
-            <dd>{formatNumber(consumed / 1000, ' kWh', { precision: 1 })}</dd>
+            <dd>
+              {formatNumber(loadConsumed / 1000, ' kWh', { precision: 1 })}
+            </dd>
           </dl>
           <dl>
-            <dt>Köpt:</dt>
-            <dd>{formatNumber(consumed / 1000, ' kWh', { precision: 1 })}</dd>
+            <dt>Import / Export:</dt>
+            <dd>
+              {formatNumber(gridConsumed / 1000, ' kWh', { precision: 1 })}
+            </dd>
           </dl>
           <dl>
             <dt>Kostnad:</dt>
             <dd>
               {!altView
-                ? formatNumber(totalCost, ' SEK')
-                : formatNumber(totalCost / (consumed / 100000), ' öre/kWh', {
+                ? formatNumber(gridCost, ' SEK')
+                : formatNumber(gridCost / (gridConsumed / 100000), ' öre/kWh', {
                     precision: 0,
                   })}
             </dd>
@@ -171,7 +228,11 @@ export default function Summary(props: { height: number }) {
           </dl>
           <dl>
             <dt>Prod. / peak:</dt>
-            <dd>0 kWh / 0 kW</dd>
+            <dd>
+              {!altView
+                ? formatNumber(pvProduced / 1000, ' kWh', { precision: 1 })
+                : formatNumber(pvPeak / 1000, ' kW', { precision: 2 })}
+            </dd>
           </dl>
           <dl>
             <dt>Max kons.:</dt>
@@ -180,7 +241,7 @@ export default function Summary(props: { height: number }) {
                 <>
                   {formatNumber(highHour / 1000, ' kW', { precision: 1 })}
                   {' / '}
-                  {formatNumber(maxConsum / 1000, ' kW', { precision: 1 })}
+                  {formatNumber(gridPeak / 1000, ' kW', { precision: 1 })}
                 </>
               ) : (
                 <>

@@ -24,21 +24,13 @@ export function PowerLive(props: { height: number }) {
     const client = mqtt.connect('mqtt://192.168.116.232:8083')
 
     client.on('connect', function () {
-      console.log('connected')
-
-      // client.subscribe(
-      //   'servicelocation/+/realtime',
-      //   function (err: SerializedError) {
-      //     if (err) {
-      //       console.error(err)
-      //     }
-      //   },
-      // )
+      console.log('mqtt connected')
 
       client.subscribe('ehub', function (err: SerializedError) {
         if (err) {
           console.error(err)
         }
+        console.log('subscribed topic: ehub')
       })
     })
 
@@ -109,8 +101,10 @@ export function PowerLive(props: { height: number }) {
         return '☀️ ' + formatPower(solarPower)
       }}
       grid={() => {
-        const p = solarPower === 0 ? consumePower : gridPower
-        return '⚡️ ' + formatPower(p)
+        if (solarPower === 0) {
+          return ''
+        }
+        return '⚡️ ' + formatPower(gridPower)
       }}
       title="Nuvarande förbrk."
     />
