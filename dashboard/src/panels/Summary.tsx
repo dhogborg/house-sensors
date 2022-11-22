@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { deepEqual, formatNumber } from '@lib/helpers'
+import { formatNumber } from '@lib/helpers'
 import { useAppDispatch, useAppSelector } from '@lib/hooks'
 import * as tibber from '@lib/slices/tibber'
 
@@ -9,27 +9,25 @@ import mqtt from 'precompiled-mqtt'
 import * as influxdb from '@lib/slices/influxdb'
 import { Col, Row } from 'antd'
 import { SerializedError } from '@reduxjs/toolkit'
+import { useSelector } from 'react-redux'
 
 export default function Summary(props: { height: number }) {
   const dispatch = useAppDispatch()
-  const loadPower = useAppSelector(influxdb.selectQuery('loadPower'), deepEqual)
-  const gridPower = useAppSelector(influxdb.selectQuery('gridPower'), deepEqual)
-  const pvPower = useAppSelector(influxdb.selectQuery('pvPower'), deepEqual)
-  const pvPeakPower = useAppSelector(influxdb.selectQuery('pvPeak'), deepEqual)
+  const loadHours = useSelector(influxdb.selectSeriesValues('loadPower', 0))
+  const gridHours = useSelector(influxdb.selectSeriesValues('gridPower', 0))
+  const pvHours = useSelector(influxdb.selectSeriesValues('pvPower', 0))
+  const pvPeakValues = useSelector(influxdb.selectSeriesValues('pvPeak', 0))
 
-  const loadPowerMinutes = useAppSelector(
-    influxdb.selectQuery('loadPowerMinutes'),
-    deepEqual,
+  const loadMinutes = useSelector(
+    influxdb.selectSeriesValues('loadPowerMinutes', 0),
   )
-  const pvPowerMinutes = useAppSelector(
-    influxdb.selectQuery('pvPowerMinutes'),
-    deepEqual,
+  const pvMinutes = useSelector(
+    influxdb.selectSeriesValues('pvPowerMinutes', 0),
+  )
+  const monthGridHours = useSelector(
+    influxdb.selectSeriesValues('month_summary', 0),
   )
 
-  const monthGridHours = useAppSelector(
-    influxdb.selectQuery('month_summary'),
-    deepEqual,
-  )
   const todayPrice = useAppSelector(tibber.selector).today
   const [altView, setAltView] = useState(false)
 
@@ -142,7 +140,6 @@ export default function Summary(props: { height: number }) {
     }
   }, [setHeatPower])
 
-  const loadHours = loadPower?.series?.[0]?.values || []
   const loadConsumed = loadHours.reduce((prev, curr, i) => {
     // this hour of the day?
     let factor = 1
@@ -152,7 +149,6 @@ export default function Summary(props: { height: number }) {
     return prev + curr.value * factor
   }, 0)
 
-  const gridHours = gridPower?.series?.[0]?.values || []
   const gridConsumed = gridHours.reduce((prev, curr, i) => {
     // this hour of the day?
     let factor = 1
@@ -163,7 +159,6 @@ export default function Summary(props: { height: number }) {
     return prev + curr.value * factor
   }, 0)
 
-  const pvHours = pvPower?.series?.[0]?.values || []
   const pvProduced = pvHours.reduce((prev, curr, i) => {
     // this hour of the day?
     let factor = 1
@@ -182,7 +177,6 @@ export default function Summary(props: { height: number }) {
   })
 
   let pvPeak = 0
-  let pvPeakValues = pvPeakPower?.series?.[0]?.values
   if (pvPeakValues) {
     pvPeak = pvPeakValues
       .filter((val) => {
@@ -217,8 +211,6 @@ export default function Summary(props: { height: number }) {
     return prev + (curr.value / 1000) * price * factor
   }, 0)
 
-  const pvMinutes = pvPowerMinutes?.series?.[0]?.values || []
-  const loadMinutes = loadPowerMinutes?.series?.[0]?.values || []
   const selfConsumedValue = pvMinutes?.reduce(
     (total, pvHour, i) => {
       let priceNode = todayPrice.find((n) => {
@@ -258,10 +250,71 @@ export default function Summary(props: { height: number }) {
     { kWh: 0, cost: 0 },
   )
 
-  const highHour = monthGridHours?.series?.[0]?.values.reduce((prev, curr) => {
+  const highHour = monthGridHours.reduce((prev, curr) => {
     if (curr.value > prev) return curr.value
     return prev
   }, 0)
+
+  let rows: Grid = [
+    // Row 1
+    [
+      {
+        title: 'Förbrukat:',
+        value: formatNumber(loadConsumed / 1000, ' kWh', { precision: 1 }),
+        alt: {
+          title: 'Max Effekt:',
+          value: formatNumber(highHour / 1000, ' kW', { precision: 1 }),
+        },
+      },
+      {
+        title: 'Producerat:',
+        value: formatNumber(pvProduced / 1000, ' kWh', { precision: 1 }),
+        alt: {
+          title: 'Högsta:',
+          value: formatNumber(pvPeak / 1000, ' kW', { precision: 2 }),
+        },
+      },
+    ],
+    // Row 2
+    [
+      {
+        title: 'Import / Export:',
+        value: formatNumber(gridConsumed / 1000, ' kWh', {
+          precision: 1,
+        }),
+        alt: {
+          title: 'Kostnad:',
+          value: formatNumber(gridCost, ' SEK', { precision: 1 }),
+        },
+      },
+      {
+        title: 'Egenanvändning:',
+        value: formatNumber(selfConsumedValue.kWh, ' kWh', { precision: 2 }),
+        alt: {
+          title: 'Besparing:',
+          value: formatNumber(selfConsumedValue.cost, ' SEK', {
+            precision: 1,
+          }),
+        },
+      },
+    ],
+    // Row 3
+    [
+      {
+        title: 'Värmepump:',
+        value:
+          heatPower === undefined
+            ? '- W'
+            : formatNumber(heatPower, ' W', { precision: 0 }),
+      },
+      {
+        title: 'Snittpris:',
+        value: formatNumber(gridCost / (gridConsumed / 100000), ' öre/kWh', {
+          precision: 0,
+        }),
+      },
+    ],
+  ]
 
   return (
     <div
@@ -275,70 +328,38 @@ export default function Summary(props: { height: number }) {
     >
       <Row>
         <Col span={12}>
-          <dl>
-            <dt>{!altView ? 'Förbrukat:' : 'Max Effekt:'} </dt>
-            <dd>
-              {!altView
-                ? formatNumber(loadConsumed / 1000, ' kWh', { precision: 1 })
-                : formatNumber(highHour / 1000, ' kW', { precision: 1 })}
-            </dd>
-          </dl>
-          <dl>
-            <dt>{!altView ? `Import / Export` : `Kostnad:`}</dt>
-            <dd>
-              {!altView
-                ? formatNumber(gridConsumed / 1000, ' kWh', {
-                    precision: 1,
-                  })
-                : formatNumber(gridCost, ' SEK', {
-                    precision: 1,
-                  })}
-            </dd>
-          </dl>
-          <dl>
-            <dt>Värmepump: </dt>
-            <dd>
-              {heatPower === undefined
-                ? '- W'
-                : formatNumber(heatPower, ' W', {
-                    precision: 0,
-                  })}
-            </dd>
-          </dl>
+          {rows.map((row, i) => {
+            const cell = row[0]
+            const use = altView && cell.alt ? cell.alt : cell
+            return (
+              <dl key={i}>
+                <dt>{use.title}</dt>
+                <dd>{use.value}</dd>
+              </dl>
+            )
+          })}
         </Col>
         <Col span={12}>
-          <dl>
-            <dt>{!altView ? 'Producerat:' : 'Högsta:'}</dt>
-            <dd>
-              {!altView
-                ? formatNumber(pvProduced / 1000, ' kWh', { precision: 1 })
-                : formatNumber(pvPeak / 1000, ' kW', { precision: 2 })}
-            </dd>
-          </dl>
-
-          <dl>
-            <dt>Egenanvändning:</dt>
-            <dd>
-              {!altView
-                ? formatNumber(selfConsumedValue.kWh, ' kWh', {
-                    precision: 2,
-                  })
-                : formatNumber(selfConsumedValue.cost, ' SEK', {
-                    precision: 1,
-                  })}
-            </dd>
-          </dl>
-
-          <dl>
-            <dt>Snittpris</dt>
-            <dd>
-              {formatNumber(gridCost / (gridConsumed / 100000), ' öre/kWh', {
-                precision: 0,
-              })}
-            </dd>
-          </dl>
+          {rows.map((row, i) => {
+            const cell = row[1]
+            const use = altView && cell.alt ? cell.alt : cell
+            return (
+              <dl key={i}>
+                <dt>{use.title}</dt>
+                <dd>{use.value}</dd>
+              </dl>
+            )
+          })}
         </Col>
       </Row>
     </div>
   )
+}
+
+type Grid = Cell[][]
+interface Cell {
+  title: string
+  value: string
+
+  alt?: Cell
 }

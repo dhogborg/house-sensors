@@ -88,6 +88,15 @@ export default function PowerUseBars(props: { height: number }) {
   const totalSeries = totalQuery.series?.[0]
   const total = totalSeries?.values || []
 
+  // minimum graph value
+  const minValue = total.reduce((prev, curr) => {
+    const currKwh = curr.value / 1000
+    if (currKwh < prev) {
+      return currKwh
+    }
+    return prev
+  }, -1)
+
   // renaming total to to other since we subtract some sources from total
   const other = totalSeries?.values.map((totValue, i) => {
     let kwh = Math.round(totValue.value) / 1000
@@ -252,7 +261,7 @@ export default function PowerUseBars(props: { height: number }) {
       },
     },
     yAxis: {
-      // minLimit: -0.25,
+      minLimit: minValue,
     },
     columnWidthRatio: 0.6,
   }

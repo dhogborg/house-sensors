@@ -10,6 +10,8 @@ export interface State {
       fetching: boolean
       error?: string
       series: Series[]
+
+      fetched?: string
     }
   }
 
@@ -175,6 +177,7 @@ export const slice = createSlice({
         state.query[action.meta.arg.id] = {
           fetching: false,
           series: action.payload,
+          fetched: new Date().toJSON(),
         }
       })
       .addCase(getQuery.rejected, (state, action) => {
@@ -184,6 +187,7 @@ export const slice = createSlice({
           fetching: false,
           error: action.error.message,
           series: [],
+          fetched: new Date().toJSON(),
         }
       })
 
@@ -278,4 +282,19 @@ export const selectQuery = (id: string) => {
     }
   }
 }
+
+export const selectSeriesValues = (id: string, seriesIndex: number) => {
+  return (state: RootState) => {
+    const def: Series['values'] = []
+    const s = state.influxdb.query[id]
+    if (s) {
+      if (s.series && s.series[seriesIndex]) {
+        return s.series[seriesIndex].values
+      }
+    }
+
+    return def
+  }
+}
+
 export default slice.reducer
