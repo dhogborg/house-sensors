@@ -91,23 +91,25 @@ export function PowerLive(props: { height: number }) {
   }
 
   return (
-    <MultiGauge
-      height={props.height}
-      elements={elements}
-      consume={() => {
-        return formatPower(consumePower)
-      }}
-      solar={() => {
-        return '☀️ ' + formatPower(solarPower)
-      }}
-      grid={() => {
-        if (solarPower === 0) {
-          return ''
-        }
-        return '⚡️ ' + formatPower(gridPower)
-      }}
-      title="Nuvarande förbrk."
-    />
+    <div className="panel">
+      <MultiGauge
+        height={props.height}
+        elements={elements}
+        consume={() => {
+          return formatPower(consumePower)
+        }}
+        solar={() => {
+          return '☀️ ' + formatPower(solarPower)
+        }}
+        grid={() => {
+          if (solarPower === 0) {
+            return ''
+          }
+          return '⚡️ ' + formatPower(gridPower)
+        }}
+        title="Nuvarande förbrk."
+      />
+    </div>
   )
 }
 

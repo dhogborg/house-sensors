@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { batch } from 'react-redux'
 
 import { refresh, theme } from '@lib/config'
-import { deepEqual, formatNumber } from '@lib/helpers'
+import { formatNumber } from '@lib/helpers'
 import { useAppDispatch, useAppSelector } from '@lib/hooks'
 
 import * as influxdb from '@lib/slices/influxdb'
@@ -13,14 +13,13 @@ import { Column, ColumnConfig } from '@ant-design/charts'
 export default function PowerUseBars(props: { height: number }) {
   const dispatch = useAppDispatch()
 
-  const heatpumpQuery = useAppSelector(
-    influxdb.selectQuery('heatpumpConsumed'),
-    deepEqual,
+  const heatpumpValues = useAppSelector(
+    influxdb.selectSeriesValues('heatpumpConsumed', 0),
   )
-  const totalQuery = useAppSelector(
-    influxdb.selectQuery('totalConsumed'),
-    deepEqual,
+  const totalValues = useAppSelector(
+    influxdb.selectSeriesValues('totalConsumed', 0),
   )
+
   const priceState = useAppSelector(tibber.selector)
 
   useEffect(() => {
@@ -46,7 +45,7 @@ export default function PowerUseBars(props: { height: number }) {
         dispatch(
           influxdb.getFluxQuery({
             id: 'totalConsumed',
-            category: 'Övrigt',
+            category: 'Total',
             query: `
           from(bucket: "energy/autogen")
             |> range(start: -23h)
@@ -72,11 +71,10 @@ export default function PowerUseBars(props: { height: number }) {
     }
   }, [dispatch])
 
-  const heatpumpSeries = heatpumpQuery.series?.[0]
-  const heatpumpData = heatpumpSeries?.values.map((hpValue, i) => {
+  const heatpumpData = heatpumpValues?.map((hpValue, i) => {
     let kwh = Math.round(hpValue.value) / 1000
     // last hour isn't complete, so we have to factor in the percentage of the hour that has passed
-    if (i === heatpumpSeries.values.length - 1) {
+    if (i === heatpumpValues.values.length - 1) {
       kwh = (new Date().getMinutes() / 60) * kwh
     }
     return {
@@ -85,11 +83,8 @@ export default function PowerUseBars(props: { height: number }) {
     }
   })
 
-  const totalSeries = totalQuery.series?.[0]
-  const total = totalSeries?.values || []
-
   // minimum graph value
-  const minValue = total.reduce((prev, curr) => {
+  const minValue = totalValues?.reduce((prev, curr) => {
     const currKwh = curr.value / 1000
     if (currKwh < prev) {
       return currKwh
@@ -97,22 +92,14 @@ export default function PowerUseBars(props: { height: number }) {
     return prev
   }, -1)
 
-  // renaming total to to other since we subtract some sources from total
-  const other = totalSeries?.values.map((totValue, i) => {
+  const totalData = totalValues?.map((totValue, i) => {
     let kwh = Math.round(totValue.value) / 1000
 
-    const hpValue = heatpumpSeries?.values?.[i]?.value || 0
-    let hpKwh = Math.round(hpValue) / 1000
-
     // last hour isn't complete, so we have to factor in the percentage of the hour that has passed
-    if (i === totalSeries.values.length - 1) {
+    if (i === totalValues.values.length - 1) {
       const hourPassed = new Date().getMinutes() / 60
       kwh = hourPassed * kwh
-      hpKwh = hourPassed * hpKwh
     }
-
-    // subtract the known consumers
-    kwh = kwh - hpKwh
 
     return {
       time: totValue.time,
@@ -122,8 +109,8 @@ export default function PowerUseBars(props: { height: number }) {
   })
 
   let data: influxdb.Series['values'] = []
-  if (other) {
-    data = data.concat(other)
+  if (totalData) {
+    data = data.concat(totalData)
   }
   if (heatpumpData) {
     data = data.concat(heatpumpData)
@@ -142,7 +129,7 @@ export default function PowerUseBars(props: { height: number }) {
   ]
 
   annotations = annotations.concat(
-    total.map((hour, i) => {
+    totalValues.map((hour, i) => {
       let kwh = hour.value / 1000
       const time = hour.time
 
@@ -154,7 +141,7 @@ export default function PowerUseBars(props: { height: number }) {
         return true
       })[0]
 
-      if (i === total.length - 1) {
+      if (i === totalValues.length - 1) {
         // last hour isn't complete, so factor in the percentage of the hour that has passed
         kwh = (new Date().getMinutes() / 60) * kwh
         priceNode = priceState.current!
@@ -217,7 +204,7 @@ export default function PowerUseBars(props: { height: number }) {
 
   const config: ColumnConfig = {
     data,
-    isStack: true,
+    isStack: false,
     xField: 'time',
     yField: 'value',
     padding: 'auto',
