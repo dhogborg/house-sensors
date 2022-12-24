@@ -49,7 +49,7 @@ export default function PowerUseBars(props: { height: number }) {
             query: `
           from(bucket: "energy/autogen")
             |> range(start: -23h)
-            |> filter(fn: (r) => r._measurement == "electricity" and (r._field == "power"))
+            |> filter(fn: (r) => r._measurement == "grid" and (r._field == "power"))
             |> filter(fn: (r) => r.phase == "combined")
             |> aggregateWindow(every: 1h, fn: mean)
             |> timeShift(duration: ${tzOffset})
