@@ -90,7 +90,7 @@ export default function PowerUseBars(props: { height: number }) {
       return currKwh
     }
     return prev
-  }, -1)
+  }, -0.5)
 
   const totalData = totalValues?.map((totValue, i) => {
     let kwh = Math.round(totValue.value) / 1000
@@ -249,6 +249,13 @@ export default function PowerUseBars(props: { height: number }) {
     },
     yAxis: {
       minLimit: minValue,
+      label: {
+        formatter: (text, item, index) => {
+          const num = parseFloat(text)
+          const str = num.toFixed(2).replace(/0$/, '').replace(/\.0$/, '')
+          return str
+        },
+      },
     },
     columnWidthRatio: 0.6,
   }
