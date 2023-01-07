@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
 
-import { theme } from '@lib/config'
-import { deepEqual, formatNumber } from '@lib/helpers'
-import { useAppDispatch, useAppSelector } from '@lib/hooks'
+import { theme } from 'src/lib/config'
+import { deepEqual, formatNumber } from 'src/lib/helpers'
+import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 
-import * as influxdb from '@lib/slices/influxdb'
-import * as yr from '@lib/slices/yr'
+import * as influxdb from 'src/lib/slices/influxdb'
+import * as yr from 'src/lib/slices/yr'
 
 import { Area, AreaConfig } from '@ant-design/charts'
 
@@ -13,7 +13,10 @@ const SECONDS = 1000
 
 export default function OutdoorTemperature(props: { height: number }) {
   const dispatch = useAppDispatch()
-  const query = useAppSelector(influxdb.selectQuery('outdoor'), deepEqual)
+  const query: influxdb.State['query'][string] = useAppSelector(
+    influxdb.selectQuery('outdoor'),
+    deepEqual,
+  )
   const weatherState = useAppSelector(yr.selector)
 
   useEffect(() => {
@@ -119,6 +122,7 @@ export default function OutdoorTemperature(props: { height: number }) {
   if (weatherState.highTemp?.air_temperature) {
     weather += ` - ${Math.ceil(weatherState.highTemp.air_temperature)}°`
   }
+
   const symbolSrc = `/weathericon/svg/${weatherState.current?.symbol_12h}.svg`
 
   const config: AreaConfig = {

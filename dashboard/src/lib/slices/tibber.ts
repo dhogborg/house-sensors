@@ -145,7 +145,7 @@ async function doRequest<T>(query: string) {
   const init: RequestInit = {
     method: 'POST',
     headers: {
-      Authorization: 'Bearer ' + process.env.REACT_APP_TIBBER_TOKEN,
+      Authorization: 'Bearer ' + import.meta.env.VITE_TIBBER_TOKEN,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({

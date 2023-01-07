@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 
-import { formatNumber } from '@lib/helpers'
-import { useAppDispatch, useAppSelector } from '@lib/hooks'
-import * as tibber from '@lib/slices/tibber'
+import { formatNumber } from 'src/lib/helpers'
+import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
+import * as tibber from 'src/lib/slices/tibber'
 
 import mqtt from 'precompiled-mqtt'
 
-import * as influxdb from '@lib/slices/influxdb'
+import * as influxdb from 'src/lib/slices/influxdb'
 import { Col, Row } from 'antd'
 import { SerializedError } from '@reduxjs/toolkit'
 import { useSelector } from 'react-redux'

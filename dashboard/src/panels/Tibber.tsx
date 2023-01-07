@@ -2,15 +2,15 @@ import { useEffect, useState } from 'react'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
 
-import * as tibber from '@lib/slices/tibber'
+import * as tibber from 'src/lib/slices/tibber'
 import {
   BUY_TRANSMISSION_FEE_CENTS,
   BUY_ADDED_TAX_CENTS,
   SELL_REDUCED_TAX_CENTS,
   SELL_GRID_BENEFIT_CENTS,
-} from '@lib/config'
-import { formatNumber } from '@lib/helpers'
-import { useAppDispatch, useAppSelector } from '@lib/hooks'
+} from 'src/lib/config'
+import { formatNumber } from 'src/lib/helpers'
+import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 
 interface priceNode {
   startsAt?: string

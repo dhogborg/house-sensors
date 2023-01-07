@@ -1,7 +1,7 @@
 import { handledFetch } from '../http'
 
-const INFLUX_ENDPOINT =
-  process.env.INFLUX_ENDPOINT || 'http://192.168.116.232:8086'
+const INFLUX_ENDPOINT = import.meta.env.VITE_INFLUXDB_ENDPOINT
+const INFLUX_TOKEN = import.meta.env.VITE_INFLUXDB_TOKEN
 
 export interface Response {
   results: {

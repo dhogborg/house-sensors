@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { batch } from 'react-redux'
 
-import { refresh, theme } from '@lib/config'
-import { formatNumber } from '@lib/helpers'
-import { useAppDispatch, useAppSelector } from '@lib/hooks'
+import { refresh, theme } from 'src/lib/config'
+import { formatNumber } from 'src/lib/helpers'
+import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 
-import * as influxdb from '@lib/slices/influxdb'
-import * as tibber from '@lib/slices/tibber'
+import * as influxdb from 'src/lib/slices/influxdb'
+import * as tibber from 'src/lib/slices/tibber'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
 

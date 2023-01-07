@@ -3,6 +3,9 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { handledFetch } from '../http'
 import { RootState } from '../store'
 
+const INFLUXDB_ENDPOINT = import.meta.env.VITE_INFLUXDB_URL
+const INFLUXDB_TOKEN = import.meta.env.VITE_INFLUXDB_TOKEN
+
 export interface State {
   query: {
     // the id provided as argument
@@ -220,19 +223,17 @@ export const slice = createSlice({
   },
 })
 
-const INFLUX_ENDPOINT = 'http://192.168.116.232:9086'
-
 type FluxResponse = string
 
 async function fluxQuery(args: { query: string }): Promise<FluxResponse> {
   const response = await handledFetch(
-    `${INFLUX_ENDPOINT}/api/v2/query?org=house`,
+    `${INFLUXDB_ENDPOINT}/api/v2/query?org=house`,
     {
       method: 'POST',
       headers: {
         Accept: 'application/csv',
         'Content-type': 'application/vnd.flux',
-        Authorization: 'bearer ' + process.env.REACT_APP_INFLUXDB_TOKEN,
+        Authorization: 'bearer ' + INFLUXDB_TOKEN,
       },
       body: args.query,
     },
@@ -260,9 +261,9 @@ async function query(args: { query: string; db: string }): Promise<Response> {
     `q=${encodeURIComponent(args.query)}`,
   ].join('&')
 
-  const response = await handledFetch(`${INFLUX_ENDPOINT}/query?${request}`, {
+  const response = await handledFetch(`${INFLUXDB_ENDPOINT}/query?${request}`, {
     headers: {
-      Authorization: 'Token ' + process.env.REACT_APP_INFLUXDB_TOKEN,
+      Authorization: 'Token ' + INFLUXDB_TOKEN,
     },
   })
   return await response.json()

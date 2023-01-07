@@ -1,16 +1,19 @@
 import { useEffect } from 'react'
 
-import { refresh, time, theme } from '@lib/config'
-import { deepEqual, formatNumber } from '@lib/helpers'
-import { useAppDispatch, useAppSelector } from '@lib/hooks'
+import { refresh, time, theme } from 'src/lib/config'
+import { deepEqual, formatNumber } from 'src/lib/helpers'
+import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 
-import * as influxdb from '@lib/slices/influxdb'
+import * as influxdb from 'src/lib/slices/influxdb'
 
 import { Line, LineConfig } from '@ant-design/charts'
 
 export default function IndoorTemperature(props: { height: number }) {
   const dispatch = useAppDispatch()
-  const query = useAppSelector(influxdb.selectQuery('indoor'), deepEqual)
+  const query: influxdb.State['query'][string] = useAppSelector(
+    influxdb.selectQuery('indoor'),
+    deepEqual,
+  )
 
   useEffect(() => {
     const load = () => {

@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 
 import mqtt from 'precompiled-mqtt'
 
-import { deepEqual, formatNumber } from '@lib/helpers'
-import { useAppDispatch, useAppSelector } from '@lib/hooks'
+import { deepEqual, formatNumber } from 'src/lib/helpers'
+import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 
-import * as influxdb from '@lib/slices/influxdb'
+import * as influxdb from 'src/lib/slices/influxdb'
 
 import { Gauge, GaugeConfig } from '@ant-design/charts'
 import { SerializedError } from '@reduxjs/toolkit'
@@ -122,7 +122,10 @@ function formatPower(power: number): string {
 
 export function PowerCombined(props: { height: number }) {
   const dispatch = useAppDispatch()
-  const query = useAppSelector(influxdb.selectQuery('power'), deepEqual)
+  const query: influxdb.State['query'][string] = useAppSelector(
+    influxdb.selectQuery('power'),
+    deepEqual,
+  )
 
   useEffect(() => {
     const load = () => {
