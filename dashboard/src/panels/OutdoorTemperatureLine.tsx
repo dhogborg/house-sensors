@@ -74,6 +74,28 @@ export default function OutdoorTemperature(props: { height: number }) {
         }),
       )
     }, [])
+
+    const timeIndex: { [key: string]: influxdb.Series['values'] } = {}
+    values.forEach((node) => {
+      const t = node.time
+      if (!timeIndex[t]) {
+        timeIndex[t] = []
+      }
+      timeIndex[t].push(node)
+    })
+
+    Object.entries(timeIndex).forEach(([t, nodes]) => {
+      values.push({
+        category: 'Mean',
+        time: t,
+        value: nodes.reduce<number>((prev, curr, i) => {
+          if (i === 0) {
+            return curr.value
+          }
+          return (prev + curr.value) / 2
+        }, 0),
+      })
+    })
   }
 
   let annotation = '-'
@@ -104,7 +126,11 @@ export default function OutdoorTemperature(props: { height: number }) {
     xField: 'time',
     yField: 'value',
     padding: 'auto',
-    color: ['rgba(9, 121, 119, 0.2)', 'rgba(9, 121, 10,1)'],
+    color: [
+      'rgba(9, 121, 119, 0.2)',
+      'rgba(9, 121, 119, 0.2)',
+      'rgba(9, 121, 10,1)',
+    ],
     isStack: false,
 
     state: {},
