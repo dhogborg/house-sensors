@@ -21,7 +21,7 @@ export default function IndoorTemperature(props: { height: number }) {
         influxdb.getQuery({
           id: 'indoor',
           db: 'sensors',
-          query: `SELECT mean("value") AS "mean_value" FROM "sensors"."autogen"."temperature" WHERE time > ${time} AND ("name"='Värmepump' OR "name"='Rosa_rummet' OR "name"='Vardagsrum' OR "name"='Gästrum') AND ("source" ='Tado' OR "source" = 'Aqara') GROUP BY time(5m), "name" FILL(previous)`,
+          query: `SELECT mean("value") AS "mean_value" FROM "sensors"."autogen"."temperature" WHERE time > ${time} AND ("name"='Vardagsrum' OR "name"='Rosa_rummet' OR "name"='Gästrum' OR "name"='Värmepump') AND ("source" ='Tado' OR "source" = 'Aqara') GROUP BY time(5m), "name" FILL(previous)`,
         }),
       )
     }

@@ -87,8 +87,9 @@ export default function OutdoorTemperature(props: { height: number }) {
       timeIndex[t].push(node)
     })
 
+    const means: influxdb.Series['values'] = []
     Object.entries(timeIndex).forEach(([t, nodes]) => {
-      values.push({
+      means.push({
         category: 'Mean',
         time: t,
         value: nodes.reduce<number>((prev, curr, i) => {
@@ -99,6 +100,17 @@ export default function OutdoorTemperature(props: { height: number }) {
         }, 0),
       })
     })
+
+    // do a round of smoothing on the means
+    means.forEach((node, i) => {
+      // average with the adjacent values
+      if (i < means.length - 1) {
+        const next = means[i + 1].value
+        const v = means[i].value
+        means[i].value = (v + next) / 2
+      }
+    })
+    values = values.concat(means)
   }
 
   let annotation = '-'
@@ -148,7 +160,7 @@ export default function OutdoorTemperature(props: { height: number }) {
 
     areaStyle: (value) => {
       switch (value.category) {
-        case 'Netatmo':
+        case 'Mean':
           return {
             fill: 'l(270) 0:#000000 1:#09790a',
           }

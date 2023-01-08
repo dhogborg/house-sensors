@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
 
 import * as tibber from 'src/lib/slices/tibber'
+import * as appConfig from 'src/lib/slices/config'
 import {
   BUY_TRANSMISSION_FEE_CENTS,
   BUY_ADDED_TAX_CENTS,
@@ -21,7 +22,7 @@ interface priceNode {
 export default function PriceBars(props: { height: number }) {
   const dispatch = useAppDispatch()
   const store = useAppSelector(tibber.selector)
-  const [includeFeesAndTax, setIncludeFeesAndTax] = useState<boolean>(false)
+  const includeFeesAndTax = useAppSelector(appConfig.selector).includeTaxes
 
   useEffect(() => {
     dispatch(tibber.get())
@@ -50,7 +51,7 @@ export default function PriceBars(props: { height: number }) {
   const toggleFeesAndTaxes = (chart: unknown, event: { type: string }) => {
     switch (event.type) {
       case 'annotation:click':
-        setIncludeFeesAndTax((state) => !state)
+        dispatch(appConfig.toggleIncludeTax())
         return
     }
   }

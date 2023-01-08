@@ -27,6 +27,9 @@ export default function Summary(props: { height: number }) {
   const monthGridHours = useSelector(
     influxdb.selectSeriesValues('month_summary', 0),
   )
+  const heatpumpTotal = useSelector(
+    influxdb.selectSeriesValues('heatpump_total', 0),
+  )
 
   const todayPrice = useAppSelector(tibber.selector).today
   const [altView, setAltView] = useState(false)
@@ -90,6 +93,14 @@ export default function Summary(props: { height: number }) {
           id: 'month_summary',
           db: 'energy',
           query: `SELECT mean("power") FROM "energy"."autogen"."grid" WHERE time > now() - ${firstOtMonth}m AND "phase"='combined' GROUP BY time(1h)`,
+        }),
+      )
+
+      dispatch(
+        influxdb.getQuery({
+          id: 'heatpump_total',
+          db: 'energy',
+          query: `SELECT mean("power") AS "mean_power" FROM "energy"."autogen"."heating" WHERE time > now() - ${sinceMidnight}m  AND "type"='heatpump' GROUP BY time(1m) FILL(previous)`,
         }),
       )
     }
@@ -157,6 +168,10 @@ export default function Summary(props: { height: number }) {
     }
 
     return prev + curr.value * factor
+  }, 0)
+
+  const heatpumpTotalConsumedWm = heatpumpTotal.reduce((prev, curr) => {
+    return prev + curr.value
   }, 0)
 
   const pvProduced = pvHours.reduce((prev, curr, i) => {
@@ -289,7 +304,7 @@ export default function Summary(props: { height: number }) {
       },
       {
         title: 'Egenanvändning:',
-        value: formatNumber(selfConsumedValue.kWh, ' kWh', { precision: 2 }),
+        value: formatNumber(selfConsumedValue.kWh, ' kWh', { precision: 1 }),
         alt: {
           title: 'Besparing:',
           value: formatNumber(selfConsumedValue.cost, ' SEK', {
@@ -306,6 +321,12 @@ export default function Summary(props: { height: number }) {
           heatPower === undefined
             ? '- W'
             : formatNumber(heatPower, ' W', { precision: 0 }),
+        alt: {
+          title: 'Värmepump (idag):',
+          value: formatNumber(heatpumpTotalConsumedWm / 1000 / 60, ' kWh', {
+            precision: 1,
+          }),
+        },
       },
       {
         title: 'Snittpris:',
