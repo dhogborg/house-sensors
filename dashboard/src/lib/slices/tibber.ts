@@ -168,5 +168,6 @@ interface GQLResponse<T = any> {
 }
 
 export const selector = (state: RootState) => state.tibber
+export const today = (state: RootState) => state.tibber.today
 
 export default slice.reducer
