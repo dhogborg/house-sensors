@@ -84,7 +84,9 @@ export default function OutdoorTemperature(props: { height: number }) {
       if (!timeIndex[t]) {
         timeIndex[t] = []
       }
-      timeIndex[t].push(node)
+      if (typeof node.value === 'number') {
+        timeIndex[t].push(node)
+      }
     })
 
     const means: influxdb.Series['values'] = []
