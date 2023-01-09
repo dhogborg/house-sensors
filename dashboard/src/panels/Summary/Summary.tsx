@@ -1,21 +1,19 @@
-import { ReactNode, useEffect, useState } from 'react'
-
+import { Col, Row } from 'antd'
+import mqtt from 'precompiled-mqtt'
+import { useEffect, useState } from 'react'
+import { useSelector } from 'react-redux'
 import { formatNumber } from 'src/lib/helpers'
 import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
+import * as influxdb from 'src/lib/slices/influxdb'
 import * as tibber from 'src/lib/slices/tibber'
 
-import mqtt from 'precompiled-mqtt'
-
-import * as influxdb from 'src/lib/slices/influxdb'
-import { Col, Row } from 'antd'
 import { SerializedError } from '@reduxjs/toolkit'
-import { useSelector } from 'react-redux'
+
+import * as lib from './Summary.lib'
 
 export default function Summary(props: { height: number }) {
   const dispatch = useAppDispatch()
-  const loadHours = useSelector(influxdb.selectSeriesValues('loadPower', 0))
   const gridHours = useSelector(influxdb.selectSeriesValues('gridPower', 0))
-  const pvHours = useSelector(influxdb.selectSeriesValues('pvPower', 0))
   const pvPeakValues = useSelector(influxdb.selectSeriesValues('pvPeak', 0))
 
   const loadMinutes = useSelector(
@@ -45,22 +43,6 @@ export default function Summary(props: { height: number }) {
           id: 'gridPower',
           db: 'energy',
           query: `SELECT mean("power") FROM "energy"."autogen"."grid" WHERE time > now() - ${sinceMidnight}m AND "phase"='combined' GROUP BY time(1h)`,
-        }),
-      )
-
-      dispatch(
-        influxdb.getQuery({
-          id: 'loadPower',
-          db: 'energy',
-          query: `SELECT mean("power") FROM "energy"."autogen"."load" WHERE time > now() - ${sinceMidnight}m AND "phase"='combined' GROUP BY time(1h)`,
-        }),
-      )
-
-      dispatch(
-        influxdb.getQuery({
-          id: 'pvPower',
-          db: 'energy',
-          query: `SELECT mean("power") FROM "energy"."autogen"."pv" WHERE time > now() - ${sinceMidnight}m GROUP BY time(1h)`,
         }),
       )
 
@@ -151,142 +133,33 @@ export default function Summary(props: { height: number }) {
     }
   }, [setHeatPower])
 
-  // const loadConsumed = loadHours.reduce((prev, curr, i) => {
-  //   // this hour of the day?
-  //   let factor = 1
-  //   if (loadHours.length === i + 1) {
-  //     factor = new Date().getMinutes() / 60
-  //   }
-  //   return prev + curr.value * factor
-  // }, 0)
-
-  const gridConsumed = gridHours.reduce((prev, curr, i) => {
-    // this hour of the day?
-    let factor = 1
-    if (gridHours.length === i + 1) {
-      factor = new Date().getMinutes() / 60
-    }
-
-    return prev + curr.value * factor
-  }, 0)
-
-  // const heatpumpTotalConsumedWm = heatpumpTotal.reduce((prev, curr) => {
-  //   return prev + curr.value
-  // }, 0)
-
-  // const pvProduced = pvHours.reduce((prev, curr, i) => {
-  //   // this hour of the day?
-  //   let factor = 1
-  //   if (pvHours.length === i + 1) {
-  //     factor = new Date().getMinutes() / 60
-  //   }
-
-  //   return prev + curr.value * factor
-  // }, 0)
-
-  // let gridPeak = 0
-  // gridHours.forEach((h) => {
-  //   if (h.value > gridPeak) {
-  //     gridPeak = h.value
-  //   }
-  // })
-
-  // let pvPeak = 0
-  // if (pvPeakValues) {
-  //   pvPeak = pvPeakValues
-  //     .filter((val) => {
-  //       return val.value != null
-  //     })
-  //     .map((val) => {
-  //       return val.value
-  //     })[0]
-  // }
-
-  const gridCost = gridHours?.reduce((prev, curr, i) => {
-    let priceNode = todayPrice.find((n) => {
-      const d1 = new Date(n.startsAt)
-      const d2 = new Date(curr.time)
-      if (d1.getDate() !== d2.getDate()) return false
-      if (d1.getHours() !== d2.getHours()) return false
-      return true
-    })
-    if (!priceNode) {
-      return prev
-    }
-
-    // this hour of the day?
-    let factor = 1
-    if (gridHours.length === i + 1) {
-      factor = new Date().getMinutes() / 60
-    }
-
-    const price =
-      curr.value > 0 ? priceNode.total : priceNode.total - priceNode.tax
-
-    return prev + (curr.value / 1000) * price * factor
-  }, 0)
-
-  // const selfConsumedValue = pvMinutes?.reduce(
-  //   (total, pvHour, i) => {
-  //     let priceNode = todayPrice.find((n) => {
-  //       const d1 = new Date(n.startsAt)
-  //       const d2 = new Date(pvHour.time)
-  //       if (d1.getDate() !== d2.getDate()) return false
-  //       if (d1.getHours() !== d2.getHours()) return false
-  //       return true
-  //     })
-  //     if (!priceNode) {
-  //       return total
-  //     }
-
-  //     const load = loadMinutes[i]
-  //     if (!load) {
-  //       return total
-  //     }
-
-  //     // this hour of the day?
-  //     let factor = 1
-  //     if (pvHours.length === i + 1) {
-  //       factor = new Date().getMinutes() / 60
-  //     }
-
-  //     if (pvHour.value > 0) {
-  //       const remainPv = pvHour.value - load.value
-  //       const selfConsumedWm = remainPv > 0 ? load.value : pvHour.value
-  //       const cost = (selfConsumedWm / 1000 / 60) * priceNode.total
-  //       return {
-  //         kWh: total.kWh + selfConsumedWm / 1000 / 60,
-  //         cost: total.cost + cost * factor,
-  //       }
-  //     }
-
-  //     return total
-  //   },
-  //   { kWh: 0, cost: 0 },
-  // )
-
-  // const highHour = monthGridHours.reduce((prev, curr) => {
-  //   if (curr.value > prev) return curr.value
-  //   return prev
-  // }, 0)
+  const totalConsumedWh = lib.TotalConsumedWh(loadMinutes)
+  const peakPowerWatts = lib.PeakPowerWatts(monthGridHours)
+  const pvProducedWh = lib.PvProducedWh(pvMinutes)
+  const pvPeakWatts = lib.PvPeakWatts(pvPeakValues)
+  const netConsumedWh = lib.NetConsumedWh(gridHours)
+  const netCostSEK = lib.NetCostSEK(gridHours, todayPrice)
+  const selfUsage = lib.SelfUsage(pvMinutes, loadMinutes, todayPrice)
+  const heatPumpConsumedWh = lib.HeatPumpConsumedWh(heatpumpTotal)
+  const averagePaidPrice = lib.AveragePaidPrice(netCostSEK, netConsumedWh)
 
   let rows: Grid = [
     // Row 1
     [
       {
         title: 'Förbrukat:',
-        children: TotalConsumed(),
+        value: formatNumber(totalConsumedWh / 1000, ' kWh', { precision: 1 }),
         alt: {
           title: 'Max Effekt:',
-          children: PeakPower(),
+          value: formatNumber(peakPowerWatts / 1000, ' kW', { precision: 1 }),
         },
       },
       {
         title: 'Producerat:',
-        children: PvProduced(),
+        value: formatNumber(pvProducedWh / 1000, ' kWh', { precision: 1 }),
         alt: {
           title: 'Högsta:',
-          children: PvPeak(),
+          value: formatNumber(pvPeakWatts / 1000, ' kW', { precision: 2 }),
         },
       },
     ],
@@ -294,18 +167,22 @@ export default function Summary(props: { height: number }) {
     [
       {
         title: 'Import / Export:',
-        children: NetConsumed(),
+        value: formatNumber(netConsumedWh / 1000, ' kWh', {
+          precision: 1,
+        }),
         alt: {
           title: 'Kostnad:',
-          children: NetCost(),
+          value: formatNumber(netCostSEK, ' SEK', { precision: 1 }),
         },
       },
       {
         title: 'Egenanvändning:',
-        children: SelfUsage('energy'),
+        value: formatNumber(selfUsage.kWh, ' kWh', { precision: 1 }),
         alt: {
           title: 'Besparing:',
-          children: SelfUsage('cost'),
+          value: formatNumber(selfUsage.cost, ' SEK', {
+            precision: 1,
+          }),
         },
       },
     ],
@@ -313,18 +190,20 @@ export default function Summary(props: { height: number }) {
     [
       {
         title: 'Värmepump:',
-        children:
+        value:
           heatPower === undefined
             ? '- W'
             : formatNumber(heatPower, ' W', { precision: 0 }),
         alt: {
           title: 'Värmepump (idag):',
-          children: HeatPumpConsumed(),
+          value: formatNumber(heatPumpConsumedWh / 1000, ' kWh', {
+            precision: 1,
+          }),
         },
       },
       {
         title: 'Snittpris:',
-        children: formatNumber(gridCost / (gridConsumed / 100000), ' öre/kWh', {
+        value: formatNumber(averagePaidPrice, ' öre/kWh', {
           precision: 0,
         }),
       },
@@ -349,7 +228,7 @@ export default function Summary(props: { height: number }) {
             return (
               <dl key={i}>
                 <dt>{use.title}</dt>
-                <dd>{use.children}</dd>
+                <dd>{use.value}</dd>
               </dl>
             )
           })}
@@ -361,7 +240,7 @@ export default function Summary(props: { height: number }) {
             return (
               <dl key={i}>
                 <dt>{use.title}</dt>
-                <dd>{use.children}</dd>
+                <dd>{use.value}</dd>
               </dl>
             )
           })}
@@ -374,189 +253,7 @@ export default function Summary(props: { height: number }) {
 type Grid = Cell[][]
 interface Cell {
   title: string
-  children: ReactNode
+  value: string
 
   alt?: Cell
-}
-
-function TotalConsumed(): ReactNode {
-  const loadHours = useSelector(influxdb.selectSeriesValues('loadPower', 0))
-
-  const consumed = loadHours.reduce((prev, curr, i) => {
-    // this hour of the day?
-    let factor = 1
-    if (loadHours.length === i + 1) {
-      factor = new Date().getMinutes() / 60
-    }
-    return prev + curr.value * factor
-  }, 0)
-
-  return formatNumber(consumed / 1000, ' kWh', { precision: 1 })
-}
-
-function PeakPower(): ReactNode {
-  const monthGridHours = useSelector(
-    influxdb.selectSeriesValues('month_summary', 0),
-  )
-
-  const highHour = monthGridHours.reduce((prev, curr) => {
-    if (curr.value > prev) return curr.value
-    return prev
-  }, 0)
-
-  return formatNumber(highHour / 1000, ' kW', { precision: 1 })
-}
-
-function PvProduced(): ReactNode {
-  const pvHours = useSelector(influxdb.selectSeriesValues('pvPower', 0))
-  const pvProduced = pvHours.reduce((prev, curr, i) => {
-    // this hour of the day?
-    let factor = 1
-    if (pvHours.length === i + 1) {
-      factor = new Date().getMinutes() / 60
-    }
-
-    return prev + curr.value * factor
-  }, 0)
-
-  return formatNumber(pvProduced / 1000, ' kWh', { precision: 1 })
-}
-
-function PvPeak(): ReactNode {
-  const pvPeakValues = useSelector(influxdb.selectSeriesValues('pvPeak', 0))
-
-  let pvPeak = 0
-  if (pvPeakValues) {
-    pvPeak = pvPeakValues
-      .filter((val) => {
-        return val.value != null
-      })
-      .map((val) => {
-        return val.value
-      })[0]
-  }
-
-  return formatNumber(pvPeak / 1000, ' kW', { precision: 2 })
-}
-
-function NetConsumed(): ReactNode {
-  const gridHours = useSelector(influxdb.selectSeriesValues('gridPower', 0))
-
-  const gridConsumed = gridHours.reduce((prev, curr, i) => {
-    // this hour of the day?
-    let factor = 1
-    if (gridHours.length === i + 1) {
-      factor = new Date().getMinutes() / 60
-    }
-
-    return prev + curr.value * factor
-  }, 0)
-
-  return formatNumber(gridConsumed / 1000, ' kWh', {
-    precision: 1,
-  })
-}
-
-function NetCost(): ReactNode {
-  const gridHours = useSelector(influxdb.selectSeriesValues('gridPower', 0))
-  const todayPrice = useAppSelector(tibber.today)
-
-  const gridCost = gridHours?.reduce((prev, curr, i) => {
-    let priceNode = todayPrice.find((n) => {
-      const d1 = new Date(n.startsAt)
-      const d2 = new Date(curr.time)
-      if (d1.getDate() !== d2.getDate()) return false
-      if (d1.getHours() !== d2.getHours()) return false
-      return true
-    })
-    if (!priceNode) {
-      return prev
-    }
-
-    // this hour of the day?
-    let factor = 1
-    if (gridHours.length === i + 1) {
-      factor = new Date().getMinutes() / 60
-    }
-
-    const price =
-      curr.value > 0 ? priceNode.total : priceNode.total - priceNode.tax
-
-    return prev + (curr.value / 1000) * price * factor
-  }, 0)
-
-  return formatNumber(gridCost, ' SEK', { precision: 1 })
-}
-
-function SelfUsage(type: 'cost' | 'energy'): ReactNode {
-  const pvMinutes = useSelector(
-    influxdb.selectSeriesValues('pvPowerMinutes', 0),
-  )
-  const pvHours = useSelector(influxdb.selectSeriesValues('pvPower', 0))
-  const todayPrice = useAppSelector(tibber.today)
-  const loadMinutes = useSelector(
-    influxdb.selectSeriesValues('loadPowerMinutes', 0),
-  )
-
-  const selfConsumedValue = pvMinutes?.reduce(
-    (total, pvHour, i) => {
-      let priceNode = todayPrice.find((n) => {
-        const d1 = new Date(n.startsAt)
-        const d2 = new Date(pvHour.time)
-        if (d1.getDate() !== d2.getDate()) return false
-        if (d1.getHours() !== d2.getHours()) return false
-        return true
-      })
-      if (!priceNode) {
-        return total
-      }
-
-      const load = loadMinutes[i]
-      if (!load) {
-        return total
-      }
-
-      // this hour of the day?
-      let factor = 1
-      if (pvHours.length === i + 1) {
-        factor = new Date().getMinutes() / 60
-      }
-
-      if (pvHour.value > 0) {
-        const remainPv = pvHour.value - load.value
-        const selfConsumedWm = remainPv > 0 ? load.value : pvHour.value
-        const cost = (selfConsumedWm / 1000 / 60) * priceNode.total
-        return {
-          kWh: total.kWh + selfConsumedWm / 1000 / 60,
-          cost: total.cost + cost * factor,
-        }
-      }
-
-      return total
-    },
-    { kWh: 0, cost: 0 },
-  )
-
-  switch (type) {
-    case 'cost':
-      return formatNumber(selfConsumedValue.cost, ' SEK', {
-        precision: 1,
-      })
-    case 'energy':
-      return formatNumber(selfConsumedValue.kWh, ' kWh', { precision: 1 })
-  }
-}
-
-function HeatPumpConsumed(): ReactNode {
-  const heatpumpTotal = useSelector(
-    influxdb.selectSeriesValues('heatpump_total', 0),
-  )
-
-  const heatpumpTotalConsumedWm = heatpumpTotal.reduce((prev, curr) => {
-    return prev + curr.value
-  }, 0)
-
-  return formatNumber(heatpumpTotalConsumedWm / 1000 / 60, ' kWh', {
-    precision: 1,
-  })
 }

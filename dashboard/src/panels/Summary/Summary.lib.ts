@@ -5,20 +5,15 @@ interface Node {
   value: number
 }
 
-function TotalConsumedWh(loadHours: Node[]): number {
-  const consumed = loadHours.reduce((prev, curr, i) => {
-    // this hour of the day?
-    let factor = 1
-    if (loadHours.length === i + 1) {
-      factor = new Date().getMinutes() / 60
-    }
-    return prev + curr.value * factor
+export function TotalConsumedWh(loadMinutes: Node[]): number {
+  const consumed = loadMinutes.reduce((prev, curr) => {
+    return prev + curr.value
   }, 0)
 
-  return consumed
+  return consumed / 60
 }
 
-function PeakPowerWatts(monthGridHours: Node[]): number {
+export function PeakPowerWatts(monthGridHours: Node[]): number {
   const highHour = monthGridHours.reduce((prev, curr) => {
     if (curr.value > prev) return curr.value
     return prev
@@ -27,21 +22,15 @@ function PeakPowerWatts(monthGridHours: Node[]): number {
   return highHour
 }
 
-function PvProducedWh(pvHours: Node[]): number {
-  const pvProduced = pvHours.reduce((prev, curr, i) => {
-    // this hour of the day?
-    let factor = 1
-    if (pvHours.length === i + 1) {
-      factor = new Date().getMinutes() / 60
-    }
-
-    return prev + curr.value * factor
+export function PvProducedWh(pvMinutes: Node[]): number {
+  const pvProduced = pvMinutes.reduce((prev, curr) => {
+    return prev + curr.value
   }, 0)
 
-  return pvProduced
+  return pvProduced / 60
 }
 
-function PvPeakWatts(pvPeakValues: Node[]): number {
+export function PvPeakWatts(pvPeakValues: Node[]): number {
   let pvPeak = 0
   if (pvPeakValues) {
     pvPeak = pvPeakValues
@@ -56,7 +45,7 @@ function PvPeakWatts(pvPeakValues: Node[]): number {
   return pvPeak
 }
 
-function NetConsumedWh(gridHours: Node[]): number {
+export function NetConsumedWh(gridHours: Node[]): number {
   const gridConsumed = gridHours.reduce((prev, curr, i) => {
     // this hour of the day?
     let factor = 1
@@ -70,7 +59,7 @@ function NetConsumedWh(gridHours: Node[]): number {
   return gridConsumed
 }
 
-function NetCostSEK(
+export function NetCostSEK(
   gridHours: Node[],
   todayPrice: RootState['tibber']['today'],
 ): number {
@@ -101,21 +90,21 @@ function NetCostSEK(
   return gridCost
 }
 
-function SelfUsage(type: 'cost' | 'energy'): number {
-  const pvMinutes = useSelector(
-    influxdb.selectSeriesValues('pvPowerMinutes', 0),
-  )
-  const pvHours = useSelector(influxdb.selectSeriesValues('pvPower', 0))
-  const todayPrice = useAppSelector(tibber.today)
-  const loadMinutes = useSelector(
-    influxdb.selectSeriesValues('loadPowerMinutes', 0),
-  )
+interface SelfUsageSpec {
+  kWh: number
+  cost: number
+}
 
-  const selfConsumedValue = pvMinutes?.reduce(
-    (total, pvHour, i) => {
-      let priceNode = todayPrice.find((n) => {
+export function SelfUsage(
+  pvMinutes: Node[],
+  loadMinutes: Node[],
+  price: RootState['tibber']['today'],
+): SelfUsageSpec {
+  const selfConsumedValue = pvMinutes?.reduce<SelfUsageSpec>(
+    (total, pvMinute, i) => {
+      let priceNode = price.find((n) => {
         const d1 = new Date(n.startsAt)
-        const d2 = new Date(pvHour.time)
+        const d2 = new Date(pvMinute.time)
         if (d1.getDate() !== d2.getDate()) return false
         if (d1.getHours() !== d2.getHours()) return false
         return true
@@ -129,19 +118,13 @@ function SelfUsage(type: 'cost' | 'energy'): number {
         return total
       }
 
-      // this hour of the day?
-      let factor = 1
-      if (pvHours.length === i + 1) {
-        factor = new Date().getMinutes() / 60
-      }
-
-      if (pvHour.value > 0) {
-        const remainPv = pvHour.value - load.value
-        const selfConsumedWm = remainPv > 0 ? load.value : pvHour.value
+      if (pvMinute.value > 0) {
+        const remainPv = pvMinute.value - load.value
+        const selfConsumedWm = remainPv > 0 ? load.value : pvMinute.value
         const cost = (selfConsumedWm / 1000 / 60) * priceNode.total
         return {
           kWh: total.kWh + selfConsumedWm / 1000 / 60,
-          cost: total.cost + cost * factor,
+          cost: total.cost + cost,
         }
       }
 
@@ -150,26 +133,19 @@ function SelfUsage(type: 'cost' | 'energy'): number {
     { kWh: 0, cost: 0 },
   )
 
-  switch (type) {
-    case 'cost':
-      return formatNumber(selfConsumedValue.cost, ' SEK', {
-        precision: 1,
-      })
-    case 'energy':
-      return formatNumber(selfConsumedValue.kWh, ' kWh', { precision: 1 })
-  }
+  return selfConsumedValue
 }
 
-function HeatPumpConsumed(): number {
-  const heatpumpTotal = useSelector(
-    influxdb.selectSeriesValues('heatpump_total', 0),
-  )
-
-  const heatpumpTotalConsumedWm = heatpumpTotal.reduce((prev, curr) => {
+export function HeatPumpConsumedWh(heatpumpMinutes: Node[]): number {
+  const heatpumpTotalConsumedWm = heatpumpMinutes.reduce((prev, curr) => {
     return prev + curr.value
   }, 0)
 
-  return formatNumber(heatpumpTotalConsumedWm / 1000 / 60, ' kWh', {
-    precision: 1,
-  })
+  return heatpumpTotalConsumedWm / 60
+}
+
+export function AveragePaidPrice(netCost: number, netConsumed: number): number {
+  console.log({ netCost, netConsumed })
+  const sekPerWh = netCost / netConsumed
+  return sekPerWh * 100000
 }

@@ -91,15 +91,20 @@ export default function OutdoorTemperature(props: { height: number }) {
 
     const means: influxdb.Series['values'] = []
     Object.entries(timeIndex).forEach(([t, nodes]) => {
+      const mean =
+        nodes.length > 0
+          ? nodes.reduce<number>((prev, curr, i) => {
+              if (i === 0) {
+                return curr.value
+              }
+              return (prev + curr.value) / 2
+            }, 0)
+          : null
+
       means.push({
         category: 'Mean',
         time: t,
-        value: nodes.reduce<number>((prev, curr, i) => {
-          if (i === 0) {
-            return curr.value
-          }
-          return (prev + curr.value) / 2
-        }, 0),
+        value: mean,
       })
     })
 
