@@ -21,7 +21,11 @@ export default function IndoorTemperature(props: { height: number }) {
         influxdb.getQuery({
           id: 'indoor',
           db: 'sensors',
-          query: `SELECT mean("value") AS "mean_value" FROM "sensors"."autogen"."temperature" WHERE time > ${time} AND ("name"='Vardagsrum' OR "name"='Rosa_rummet' OR "name"='Gästrum' OR "name"='Värmepump') AND ("source" ='Tado' OR "source" = 'Aqara') GROUP BY time(5m), "name" FILL(previous)`,
+          query: `SELECT mean("value") AS "mean_value" 
+            FROM "sensors"."autogen"."temperature" 
+            WHERE time > ${time} AND ("name"='Vardagsrum' OR "name"='Rosa_rummet' OR "name"='Gästrum' OR "name"='Värmepump') AND ("source" ='Tado' OR "source" = 'Aqara') 
+            GROUP BY time(5m), "name"
+            FILL(previous)`,
         }),
       )
     }
@@ -39,7 +43,22 @@ export default function IndoorTemperature(props: { height: number }) {
   let data: influxdb.Series['values'] = []
   if (query.series?.length > 0) {
     data = query.series.reduce<influxdb.Series['values']>((prev, curr) => {
-      return prev.concat(curr.values)
+      const values = curr.values.map((value, i) => {
+        const nodes = [curr.values[i - 1], value, curr.values[i + 1]].filter(
+          (node) => node !== undefined && node.value !== null,
+        )
+
+        const sum = nodes.reduce<number>((prev, curr, i) => {
+          if (i === 0) return curr.value
+          return prev + curr.value
+        }, 0)
+
+        return {
+          ...value,
+          value: sum / nodes.length,
+        }
+      })
+      return prev.concat(values)
     }, [])
   }
 
