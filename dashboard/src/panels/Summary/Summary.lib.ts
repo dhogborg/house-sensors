@@ -145,7 +145,6 @@ export function HeatPumpConsumedWh(heatpumpMinutes: Node[]): number {
 }
 
 export function AveragePaidPrice(netCost: number, netConsumed: number): number {
-  console.log({ netCost, netConsumed })
   const sekPerWh = netCost / netConsumed
   return sekPerWh * 100000
 }

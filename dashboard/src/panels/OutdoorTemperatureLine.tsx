@@ -101,11 +101,13 @@ export default function OutdoorTemperature(props: { height: number }) {
             }, 0)
           : null
 
-      means.push({
-        category: 'Mean',
-        time: t,
-        value: mean,
-      })
+      if (mean !== null) {
+        means.push({
+          category: 'Mean',
+          time: t,
+          value: mean,
+        })
+      }
     })
 
     // do a round of smoothing on the means

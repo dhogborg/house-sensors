@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
 
@@ -21,18 +21,51 @@ interface priceNode {
 
 export default function PriceBars(props: { height: number }) {
   const dispatch = useAppDispatch()
-  const store = useAppSelector(tibber.selector)
+  const tomorrow = useAppSelector(tibber.tomorrow)
+  const today = useAppSelector(tibber.today)
   const includeFeesAndTax = useAppSelector(appConfig.selector).includeTaxes
+
+  const [currentPrice, setCurrentPrice] = useState<{
+    startsAt?: string
+    currentSek: number
+    currentTax: number
+  }>({ currentSek: 0, currentTax: 0 })
 
   useEffect(() => {
     dispatch(tibber.get())
-    const r = setInterval(() => {
+
+    // fetch tibber again at the top of the hour
+    const minRemain = 60 - new Date().getMinutes()
+    setTimeout(() => {
       dispatch(tibber.get())
-    }, 5 * 60 * 1000)
+    }, minRemain + 1 * 60 * 1000) // add a minute extra so we don't race to the new data
+  }, [dispatch])
+
+  // UPdate the current price once every 10 seconds, if changed
+  useEffect(() => {
+    const update = () => {
+      const newPrice = tibber.now(today.concat(tomorrow))
+      setCurrentPrice((curr) => {
+        if (newPrice && curr.startsAt !== newPrice.startsAt) {
+          return {
+            startsAt: newPrice.startsAt,
+            currentSek: newPrice.total,
+            currentTax: newPrice.tax,
+          }
+        }
+        return curr
+      })
+    }
+
+    update()
+    const r = setInterval(() => {
+      update()
+    }, 10 * 1000)
+
     return () => {
       clearInterval(r)
     }
-  }, [dispatch])
+  }, [today, tomorrow, setCurrentPrice])
 
   const buyFeesAndTaxes = includeFeesAndTax
     ? BUY_TRANSMISSION_FEE_CENTS + BUY_ADDED_TAX_CENTS
@@ -41,8 +74,7 @@ export default function PriceBars(props: { height: number }) {
     ? SELL_REDUCED_TAX_CENTS + SELL_GRID_BENEFIT_CENTS
     : 0
 
-  const currentSek = store.current?.total || 0
-  const currentTax = store.current?.tax || 0
+  const { currentSek, currentTax } = currentPrice
   const currentBuy = Math.round(100 * currentSek + buyFeesAndTaxes)
   const currentSell = Math.round(
     100 * (currentSek - currentTax) + sellFeesAndTaxes,
@@ -59,7 +91,7 @@ export default function PriceBars(props: { height: number }) {
   let priceData: priceNode[] = []
 
   priceData = priceData.concat(
-    store.today.map((node) => {
+    today.map((node) => {
       return {
         ...node,
         category: 'buy_price',
@@ -69,7 +101,7 @@ export default function PriceBars(props: { height: number }) {
   )
 
   priceData = priceData.concat(
-    store.tomorrow.map((node) => {
+    tomorrow.map((node) => {
       return {
         ...node,
         category: 'buy_price',
@@ -79,7 +111,7 @@ export default function PriceBars(props: { height: number }) {
   )
 
   priceData = priceData.concat(
-    store.today.map((node) => {
+    today.map((node) => {
       return {
         ...node,
         category: 'sell_price',
@@ -89,7 +121,7 @@ export default function PriceBars(props: { height: number }) {
   )
 
   priceData = priceData.concat(
-    store.tomorrow.map((node) => {
+    tomorrow.map((node) => {
       return {
         ...node,
         category: 'sell_price',
@@ -98,7 +130,7 @@ export default function PriceBars(props: { height: number }) {
     }),
   )
 
-  const segmentCount = store.today.length + store.tomorrow.length
+  const segmentCount = today.length + tomorrow.length
 
   let lowNode: priceNode | undefined
   let lowIndex = -1
@@ -129,7 +161,7 @@ export default function PriceBars(props: { height: number }) {
 
   priceData.push({
     category: 'current_buy',
-    startsAt: store.current?.startsAt,
+    startsAt: currentPrice.startsAt,
     price: currentBuy,
   })
 

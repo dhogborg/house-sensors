@@ -44,9 +44,11 @@ export default function IndoorTemperature(props: { height: number }) {
   if (query.series?.length > 0) {
     data = query.series.reduce<influxdb.Series['values']>((prev, curr) => {
       const values = curr.values.map((value, i) => {
-        const nodes = [curr.values[i - 1], value, curr.values[i + 1]].filter(
-          (node) => node !== undefined && node.value !== null,
-        )
+        const nodes = [
+          curr.values[i - 1],
+          curr.values[i],
+          curr.values[i + 1],
+        ].filter((node) => node !== undefined && node.value !== null)
 
         const sum = nodes.reduce<number>((prev, curr, i) => {
           if (i === 0) return curr.value

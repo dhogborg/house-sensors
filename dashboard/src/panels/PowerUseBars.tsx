@@ -144,7 +144,7 @@ export default function PowerUseBars(props: { height: number }) {
       if (i === totalValues.length - 1) {
         // last hour isn't complete, so factor in the percentage of the hour that has passed
         kwh = (new Date().getMinutes() / 60) * kwh
-        priceNode = priceState.current!
+        priceNode = tibber.now(priceState.today)
       }
 
       let price = 0

@@ -1,9 +1,8 @@
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import { createAsyncThunk, createSelector, createSlice } from '@reduxjs/toolkit'
 import { handledFetch } from '../http'
 import { RootState } from '../store'
 
 export interface State {
-  current?: PriceNode
   today: PriceNode[]
   tomorrow: PriceNode[]
   nodes: PriceNode[]
@@ -21,7 +20,6 @@ export interface PriceNode {
 }
 
 const initialState: State = {
-  current: undefined,
   tomorrow: [],
   today: [],
   nodes: [],
@@ -40,7 +38,6 @@ interface PriceResult {
 interface Home {
   currentSubscription: {
     priceInfo: {
-      current: PriceNode
       today: PriceNode[]
       tomorrow: PriceNode[]
       range: {
@@ -63,11 +60,6 @@ export const get = createAsyncThunk<
       homes {
         currentSubscription{
           priceInfo{
-            current{
-              total
-              tax
-              startsAt
-            }
             tomorrow{
               total
               tax
@@ -92,7 +84,7 @@ export const get = createAsyncThunk<
   }`
     const result = await doRequest<PriceResult>(query)
     const activeHome = result.viewer.homes.find((home) => {
-      if (home.currentSubscription?.priceInfo?.current) {
+      if (home.currentSubscription?.priceInfo?.range) {
         return true
       }
       return false
@@ -129,7 +121,6 @@ export const slice = createSlice({
       })
       .addCase(get.fulfilled, (state, action) => {
         state.status = 'idle'
-        state.current = action.payload.current
         state.today = action.payload.today
         state.tomorrow = action.payload.tomorrow
         state.nodes = action.payload.range.nodes
@@ -169,5 +160,14 @@ interface GQLResponse<T = any> {
 
 export const selector = (state: RootState) => state.tibber
 export const today = (state: RootState) => state.tibber.today
+export const tomorrow = (state: RootState) => state.tibber.tomorrow
+
+export const now = (nodes: PriceNode[]): PriceNode => {
+  const now = new Date()
+  return nodes.find((node) => {
+    const d = new Date(node.startsAt)
+    return now.getHours() === d.getHours() && now.getDay() == d.getDay()
+  })
+}
 
 export default slice.reducer
