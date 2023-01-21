@@ -1,17 +1,26 @@
 import { useEffect } from 'react'
-import { batch } from 'react-redux'
+import { batch, useSelector } from 'react-redux'
 
-import { refresh, theme } from 'src/lib/config'
+import {
+  refresh,
+  theme,
+  BUY_TRANSMISSION_FEE_CENTS,
+  BUY_ADDED_TAX_CENTS,
+  SELL_REDUCED_TAX_CENTS,
+  SELL_GRID_BENEFIT_CENTS,
+} from 'src/lib/config'
 import { formatNumber } from 'src/lib/helpers'
 import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 
 import * as influxdb from 'src/lib/slices/influxdb'
 import * as tibber from 'src/lib/slices/tibber'
+import * as configSlice from 'src/lib/slices/config'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
 
 export default function PowerUseBars(props: { height: number }) {
   const dispatch = useAppDispatch()
+  const includeTax = useSelector(configSlice.selector).includeTaxes
 
   const heatpumpValues = useAppSelector(
     influxdb.selectSeriesValues('heatpumpConsumed', 0),
@@ -147,9 +156,17 @@ export default function PowerUseBars(props: { height: number }) {
         priceNode = tibber.now(priceState.today)
       }
 
+      const fees = includeTax
+        ? (BUY_ADDED_TAX_CENTS + BUY_TRANSMISSION_FEE_CENTS) / 100
+        : 0
+
+      const benefits = includeTax
+        ? (SELL_REDUCED_TAX_CENTS + SELL_GRID_BENEFIT_CENTS) / 100
+        : 0
+
       let price = 0
       if (priceNode) {
-        price = kwh > 0 ? priceNode.total : priceNode.total - priceNode.tax
+        price = kwh > 0 ? priceNode.total + fees : priceNode.energy + benefits
       }
 
       let priceStr = ''

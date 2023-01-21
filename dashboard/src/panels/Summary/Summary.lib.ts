@@ -1,5 +1,11 @@
 import { RootState } from '../../lib/store'
+import * as taxes from 'src/lib/config'
 
+const buyTaxesPerkWh =
+  (taxes.BUY_ADDED_TAX_CENTS + taxes.BUY_TRANSMISSION_FEE_CENTS) / 100
+
+const sellBenefitsPerkWh =
+  (taxes.SELL_GRID_BENEFIT_CENTS + taxes.SELL_REDUCED_TAX_CENTS) / 100
 interface Node {
   time: string
   value: number
@@ -62,6 +68,7 @@ export function NetConsumedWh(gridHours: Node[]): number {
 export function NetCostSEK(
   gridHours: Node[],
   todayPrice: RootState['tibber']['today'],
+  includeTax: boolean,
 ): number {
   const gridCost = gridHours?.reduce((prev, curr, i) => {
     let priceNode = todayPrice.find((n) => {
@@ -75,6 +82,9 @@ export function NetCostSEK(
       return prev
     }
 
+    const fees = includeTax ? buyTaxesPerkWh : 0
+    const benefits = includeTax ? sellBenefitsPerkWh : 0
+
     // this hour of the day?
     let factor = 1
     if (gridHours.length === i + 1) {
@@ -82,7 +92,7 @@ export function NetCostSEK(
     }
 
     const price =
-      curr.value > 0 ? priceNode.total : priceNode.total - priceNode.tax
+      curr.value > 0 ? priceNode.total + fees : priceNode.energy + benefits
 
     return prev + (curr.value / 1000) * price * factor
   }, 0)
@@ -99,6 +109,7 @@ export function SelfUsage(
   pvMinutes: Node[],
   loadMinutes: Node[],
   price: RootState['tibber']['today'],
+  includeTax: boolean,
 ): SelfUsageSpec {
   const selfConsumedValue = pvMinutes?.reduce<SelfUsageSpec>(
     (total, pvMinute, i) => {
@@ -121,9 +132,14 @@ export function SelfUsage(
       if (pvMinute.value > 0) {
         const remainPv = pvMinute.value - load.value
         const selfConsumedWm = remainPv > 0 ? load.value : pvMinute.value
-        const cost = (selfConsumedWm / 1000 / 60) * priceNode.total
+        const kWh = selfConsumedWm / 1000 / 60
+        let cost = kWh * priceNode.total
+
+        if (includeTax) {
+          cost += kWh * buyTaxesPerkWh
+        }
         return {
-          kWh: total.kWh + selfConsumedWm / 1000 / 60,
+          kWh: total.kWh + kWh,
           cost: total.cost + cost,
         }
       }

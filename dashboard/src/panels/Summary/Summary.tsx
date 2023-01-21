@@ -6,6 +6,7 @@ import { formatNumber } from 'src/lib/helpers'
 import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 import * as influxdb from 'src/lib/slices/influxdb'
 import * as tibber from 'src/lib/slices/tibber'
+import * as config from 'src/lib/slices/config'
 
 import { SerializedError } from '@reduxjs/toolkit'
 
@@ -13,6 +14,7 @@ import * as lib from './Summary.lib'
 
 export default function Summary(props: { height: number }) {
   const dispatch = useAppDispatch()
+  const includeTax = useSelector(config.selector).includeTaxes
   const gridHours = useSelector(influxdb.selectSeriesValues('gridPower', 0))
   const pvPeakValues = useSelector(influxdb.selectSeriesValues('pvPeak', 0))
 
@@ -138,8 +140,13 @@ export default function Summary(props: { height: number }) {
   const pvProducedWh = lib.PvProducedWh(pvMinutes)
   const pvPeakWatts = lib.PvPeakWatts(pvPeakValues)
   const netConsumedWh = lib.NetConsumedWh(gridHours)
-  const netCostSEK = lib.NetCostSEK(gridHours, todayPrice)
-  const selfUsage = lib.SelfUsage(pvMinutes, loadMinutes, todayPrice)
+  const netCostSEK = lib.NetCostSEK(gridHours, todayPrice, includeTax)
+  const selfUsage = lib.SelfUsage(
+    pvMinutes,
+    loadMinutes,
+    todayPrice,
+    includeTax,
+  )
   const heatPumpConsumedWh = lib.HeatPumpConsumedWh(heatpumpTotal)
   const averagePaidPrice = lib.AveragePaidPrice(netCostSEK, netConsumedWh)
 

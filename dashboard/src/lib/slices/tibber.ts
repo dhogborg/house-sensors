@@ -15,6 +15,7 @@ export interface State {
 
 export interface PriceNode {
   total: number
+  energy: number
   tax: number
   startsAt: string
 }
@@ -63,17 +64,20 @@ export const get = createAsyncThunk<
             tomorrow{
               total
               tax
+              energy
               startsAt
             }
             today{
               total
               tax
+              energy
               startsAt
             }
             range(resolution: HOURLY, last: 25){
               nodes{
                 startsAt,
                 tax
+                energy
                 total,
               }
             }
