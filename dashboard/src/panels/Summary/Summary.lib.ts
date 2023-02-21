@@ -65,12 +65,50 @@ export function NetConsumedWh(gridHours: Node[]): number {
   return gridConsumed
 }
 
-export function NetCostSEK(
-  gridHours: Node[],
+export function GridImport(gridMinutes: Node[]): number {
+  const wm = gridMinutes.reduce((prev, curr) => {
+    if (curr.value > 0) {
+      return prev + curr.value
+    }
+    return prev
+  }, 0)
+  return wm / 60
+}
+
+export function GridExport(gridMinutes: Node[]): number {
+  const wm = gridMinutes.reduce((prev, curr) => {
+    if (curr.value < 0) {
+      return prev + curr.value * -1
+    }
+    return prev
+  }, 0)
+  return wm / 60
+}
+
+export function TotalCostSEK(
+  gridMinutes: Node[],
   todayPrice: RootState['tibber']['today'],
   includeTax: boolean,
 ): number {
-  const gridCost = gridHours?.reduce((prev, curr, i) => {
+  const importMins = gridMinutes.filter((v) => v.value > 0)
+  return summedCost(importMins, todayPrice, includeTax)
+}
+
+export function TotalGainSEK(
+  gridMinutes: Node[],
+  todayPrice: RootState['tibber']['today'],
+  includeTax: boolean,
+): number {
+  const exportMins = gridMinutes.filter((v) => v.value < 0)
+  return summedCost(exportMins, todayPrice, includeTax)
+}
+
+export function summedCost(
+  gridMinutes: Node[],
+  todayPrice: RootState['tibber']['today'],
+  includeTax: boolean,
+): number {
+  const gridCost = gridMinutes?.reduce((prev, curr, i) => {
     let priceNode = todayPrice.find((n) => {
       const d1 = new Date(n.startsAt)
       const d2 = new Date(curr.time)
@@ -82,27 +120,22 @@ export function NetCostSEK(
       return prev
     }
 
-    const fees = includeTax ? buyTaxesPerkWh : 0
-    const benefits = includeTax ? sellBenefitsPerkWh : 0
-
-    // this hour of the day?
-    let factor = 1
-    if (gridHours.length === i + 1) {
-      factor = new Date().getMinutes() / 60
-    }
+    const fees = includeTax ? buyTaxesPerkWh / 60 : 0
+    const benefits = includeTax ? sellBenefitsPerkWh / 60 : 0
 
     const price =
       curr.value > 0 ? priceNode.total + fees : priceNode.energy + benefits
 
-    return prev + (curr.value / 1000) * price * factor
+    return prev + (curr.value / 1000) * price
   }, 0)
 
-  return gridCost
+  return gridCost / 60
 }
 
 interface SelfUsageSpec {
   kWh: number
-  cost: number
+  potentialCost: number // What the energy would have cost if we were to buy it
+  cost: number // what the energy cost us to use in lost revenue
 }
 
 export function SelfUsage(
@@ -133,20 +166,24 @@ export function SelfUsage(
         const remainPv = pvMinute.value - load.value
         const selfConsumedWm = remainPv > 0 ? load.value : pvMinute.value
         const kWh = selfConsumedWm / 1000 / 60
-        let cost = kWh * priceNode.total
+        let potentialCost = kWh * priceNode.total
+        let cost = kWh * priceNode.energy
 
         if (includeTax) {
-          cost += kWh * buyTaxesPerkWh
+          potentialCost += kWh * buyTaxesPerkWh
+          cost += kWh * sellBenefitsPerkWh
         }
+
         return {
           kWh: total.kWh + kWh,
+          potentialCost: total.potentialCost + potentialCost,
           cost: total.cost + cost,
         }
       }
 
       return total
     },
-    { kWh: 0, cost: 0 },
+    { kWh: 0, potentialCost: 0, cost: 0 },
   )
 
   return selfConsumedValue

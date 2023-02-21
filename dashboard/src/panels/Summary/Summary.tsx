@@ -15,7 +15,8 @@ import * as lib from './Summary.lib'
 export default function Summary(props: { height: number }) {
   const dispatch = useAppDispatch()
   const includeTax = useSelector(config.selector).includeTaxes
-  const gridHours = useSelector(influxdb.selectSeriesValues('gridPower', 0))
+  // const gridHours = useSelector(influxdb.selectSeriesValues('gridPower', 0))
+  const gridMinutes = useSelector(influxdb.selectSeriesValues('gridMinutes', 0))
   const pvPeakValues = useSelector(influxdb.selectSeriesValues('pvPeak', 0))
 
   const loadMinutes = useSelector(
@@ -35,16 +36,16 @@ export default function Summary(props: { height: number }) {
   const [altView, setAltView] = useState(false)
 
   useEffect(() => {
-    const now = new Date()
-    const sinceMidnight = now.getHours() * 60 + now.getMinutes()
-    const firstOtMonth = now.getDate() * 24 * 60 + now.getMinutes()
-
     const load = () => {
+      const now = new Date()
+      const sinceMidnight = now.getHours() * 60 + now.getMinutes()
+      const firstOtMonth = now.getDate() * 24 * 60 + now.getMinutes()
+
       dispatch(
         influxdb.getQuery({
-          id: 'gridPower',
+          id: 'gridMinutes',
           db: 'energy',
-          query: `SELECT mean("power") FROM "energy"."autogen"."grid" WHERE time > now() - ${sinceMidnight}m AND "phase"='combined' GROUP BY time(1h)`,
+          query: `SELECT mean("power") FROM "energy"."autogen"."grid" WHERE time > now() - ${sinceMidnight}m AND "phase"='combined' GROUP BY time(1m)`,
         }),
       )
 
@@ -139,8 +140,13 @@ export default function Summary(props: { height: number }) {
   const peakPowerWatts = lib.PeakPowerWatts(monthGridHours)
   const pvProducedWh = lib.PvProducedWh(pvMinutes)
   const pvPeakWatts = lib.PvPeakWatts(pvPeakValues)
-  const netConsumedWh = lib.NetConsumedWh(gridHours)
-  const netCostSEK = lib.NetCostSEK(gridHours, todayPrice, includeTax)
+  const imported = lib.GridImport(gridMinutes)
+  const exported = lib.GridExport(gridMinutes)
+
+  const totalPaidSEK = lib.TotalCostSEK(gridMinutes, todayPrice, includeTax)
+  const netCostSEK =
+    totalPaidSEK + lib.TotalGainSEK(gridMinutes, todayPrice, includeTax)
+
   const selfUsage = lib.SelfUsage(
     pvMinutes,
     loadMinutes,
@@ -148,7 +154,10 @@ export default function Summary(props: { height: number }) {
     includeTax,
   )
   const heatPumpConsumedWh = lib.HeatPumpConsumedWh(heatpumpTotal)
-  const averagePaidPrice = lib.AveragePaidPrice(netCostSEK, netConsumedWh)
+  const averagePaidPrice = lib.AveragePaidPrice(
+    totalPaidSEK + selfUsage.cost,
+    totalConsumedWh,
+  )
 
   let rows: Grid = [
     // Row 1
@@ -173,13 +182,13 @@ export default function Summary(props: { height: number }) {
     // Row 2
     [
       {
-        title: 'Import / Export:',
-        value: formatNumber(netConsumedWh / 1000, ' kWh', {
+        title: 'Import:',
+        value: formatNumber(imported / 1000, ' kWh', {
           precision: 1,
         }),
         alt: {
-          title: 'Kostnad:',
-          value: formatNumber(netCostSEK, ' SEK', { precision: 1 }),
+          title: 'Export:',
+          value: formatNumber(exported / 1000, ' kWh', { precision: 1 }),
         },
       },
       {
@@ -187,7 +196,7 @@ export default function Summary(props: { height: number }) {
         value: formatNumber(selfUsage.kWh, ' kWh', { precision: 1 }),
         alt: {
           title: 'Besparing:',
-          value: formatNumber(selfUsage.cost, ' SEK', {
+          value: formatNumber(selfUsage.potentialCost, ' SEK', {
             precision: 1,
           }),
         },
@@ -209,10 +218,14 @@ export default function Summary(props: { height: number }) {
         },
       },
       {
-        title: 'Snittpris:',
-        value: formatNumber(averagePaidPrice, ' öre/kWh', {
-          precision: 0,
-        }),
+        title: 'Total kostnad:',
+        value: formatNumber(netCostSEK, ' SEK', { precision: 0 }),
+        alt: {
+          title: 'Snittpris:',
+          value: formatNumber(averagePaidPrice, ' öre/kWh', {
+            precision: 0,
+          }),
+        },
       },
     ],
   ]

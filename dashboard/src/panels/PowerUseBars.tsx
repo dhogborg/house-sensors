@@ -23,11 +23,10 @@ export default function PowerUseBars(props: { height: number }) {
   const includeTax = useSelector(configSlice.selector).includeTaxes
 
   const heatpumpValues = useAppSelector(
-    influxdb.selectSeriesValues('heatpumpConsumed', 0),
+    influxdb.selectSeriesValues('heatpumpLoad', 0),
   )
-  const totalValues = useAppSelector(
-    influxdb.selectSeriesValues('totalConsumed', 0),
-  )
+  const loadValues = useAppSelector(influxdb.selectSeriesValues('totalLoad', 0))
+  const pvValues = useAppSelector(influxdb.selectSeriesValues('totalPv', 0))
 
   const priceState = useAppSelector(tibber.selector)
 
@@ -37,7 +36,7 @@ export default function PowerUseBars(props: { height: number }) {
       batch(() => {
         dispatch(
           influxdb.getFluxQuery({
-            id: 'heatpumpConsumed',
+            id: 'heatpumpLoad',
             category: 'Värmepump',
             query: `
           from(bucket: "energy/autogen")
@@ -53,13 +52,29 @@ export default function PowerUseBars(props: { height: number }) {
         )
         dispatch(
           influxdb.getFluxQuery({
-            id: 'totalConsumed',
-            category: 'Total',
+            id: 'totalLoad',
+            category: 'Konsumtion',
             query: `
           from(bucket: "energy/autogen")
             |> range(start: -23h)
-            |> filter(fn: (r) => r._measurement == "grid" and (r._field == "power"))
+            |> filter(fn: (r) => r._measurement == "load" and (r._field == "power"))
             |> filter(fn: (r) => r.phase == "combined")
+            |> aggregateWindow(every: 1h, fn: mean)
+            |> timeShift(duration: ${tzOffset})
+            |> fill(value: 0.0)
+            |> yield(name: "electricity")
+          `,
+          }),
+        )
+
+        dispatch(
+          influxdb.getFluxQuery({
+            id: 'totalPv',
+            category: 'Produktion',
+            query: `
+          from(bucket: "energy/autogen")
+            |> range(start: -23h)
+            |> filter(fn: (r) => r._measurement == "pv" and (r._field == "power"))
             |> aggregateWindow(every: 1h, fn: mean)
             |> timeShift(duration: ${tzOffset})
             |> fill(value: 0.0)
@@ -83,7 +98,7 @@ export default function PowerUseBars(props: { height: number }) {
   const heatpumpData = heatpumpValues?.map((hpValue, i) => {
     let kwh = Math.round(hpValue.value) / 1000
     // last hour isn't complete, so we have to factor in the percentage of the hour that has passed
-    if (i === heatpumpValues.values.length - 1) {
+    if (i === heatpumpValues.length - 1) {
       kwh = (new Date().getMinutes() / 60) * kwh
     }
     return {
@@ -92,20 +107,11 @@ export default function PowerUseBars(props: { height: number }) {
     }
   })
 
-  // minimum graph value
-  const minValue = totalValues?.reduce((prev, curr) => {
-    const currKwh = curr.value / 1000
-    if (currKwh < prev) {
-      return currKwh
-    }
-    return prev
-  }, -1.1)
-
-  const totalData = totalValues?.map((totValue, i) => {
+  const loadData = loadValues?.map((totValue, i) => {
     let kwh = Math.round(totValue.value) / 1000
 
     // last hour isn't complete, so we have to factor in the percentage of the hour that has passed
-    if (i === totalValues.values.length - 1) {
+    if (i === loadValues.length - 1) {
       const hourPassed = new Date().getMinutes() / 60
       kwh = hourPassed * kwh
     }
@@ -117,42 +123,65 @@ export default function PowerUseBars(props: { height: number }) {
     }
   })
 
+  const pvData = pvValues?.map((pvValue, i) => {
+    let kwh = Math.round(pvValue.value) / 1000
+
+    // last hour isn't complete, so we have to factor in the percentage of the hour that has passed
+    if (i === pvValues.length - 1) {
+      const hourPassed = new Date().getMinutes() / 60
+      kwh = hourPassed * kwh
+    }
+
+    return {
+      time: pvValue.time,
+      category: pvValue.category,
+      value: kwh * -1,
+    }
+  })
+
   let data: influxdb.Series['values'] = []
-  if (totalData) {
-    data = data.concat(totalData)
+  if (loadData) {
+    data = data.concat(loadData)
   }
   if (heatpumpData) {
     data = data.concat(heatpumpData)
+  }
+  if (pvData) {
+    data = data.concat(pvData)
   }
 
   let annotations: ColumnConfig['annotations'] = [
     {
       type: 'line',
-      start: ['min', 0],
-      end: ['max', 0],
+      start: [-1, 0],
+      end: [24, 0],
       style: {
-        lineWidth: 1,
-        stroke: '#454545',
+        lineWidth: 2,
+        stroke: 'black',
       },
     },
   ]
 
   annotations = annotations.concat(
-    totalValues.map((hour, i) => {
-      let kwh = hour.value / 1000
-      const time = hour.time
+    loadValues.map((hour, i) => {
+      let loadKwh = hour.value / 1000
+      const { time } = hour
 
-      let priceNode = priceState.nodes.filter((n) => {
+      let priceNode = priceState.nodes.find((n) => {
         const d1 = new Date(n.startsAt)
         const d2 = new Date(time)
         if (d1.getDate() !== d2.getDate()) return false
         if (d1.getHours() !== d2.getHours()) return false
         return true
-      })[0]
+      })
 
-      if (i === totalValues.length - 1) {
+      const pvValue = pvValues[i]
+      let pvKwh = pvValue?.value / 1000 ?? 0
+
+      if (i === loadValues.length - 1) {
         // last hour isn't complete, so factor in the percentage of the hour that has passed
-        kwh = (new Date().getMinutes() / 60) * kwh
+        loadKwh = (new Date().getMinutes() / 60) * loadKwh
+        pvKwh = (new Date().getMinutes() / 60) * pvKwh
         priceNode = tibber.now(priceState.today)
       }
 
@@ -164,18 +193,17 @@ export default function PowerUseBars(props: { height: number }) {
         ? (SELL_REDUCED_TAX_CENTS + SELL_GRID_BENEFIT_CENTS) / 100
         : 0
 
-      let price = 0
-      if (priceNode) {
-        price = kwh > 0 ? priceNode.total + fees : priceNode.energy + benefits
-      }
-
+      let netCost = 0
       let priceStr = ''
       if (priceNode) {
-        priceStr = Number(kwh * price).toFixed(2)
+        const cost = loadKwh > 0 ? loadKwh * (priceNode.total + fees) : 0
+        const gain = pvKwh * (priceNode.energy + benefits) * -1
+        netCost = cost + gain
+        priceStr = Number(netCost).toFixed(2)
       }
 
       let fill = 'rgba(0,0,0,0)'
-      if (priceNode?.total !== undefined) fill = priceFill(kwh * price)
+      fill = priceFill(netCost)
 
       return {
         type: 'text',
@@ -183,17 +211,7 @@ export default function PowerUseBars(props: { height: number }) {
 
         position: (xScale, yScale: any) => {
           const left = 2 + i * 4.1666
-
-          const range = yScale.value.max - yScale.value.min
-          const zeroLine = yScale.value.max / range
-
-          let top = 0
-          if (kwh > 0) {
-            top = zeroLine * 100 + 18
-          } else {
-            top = zeroLine * 100
-          }
-
+          let top = 12
           return [
             `${left}%`, // left
             `${top}%`, // top
@@ -265,7 +283,6 @@ export default function PowerUseBars(props: { height: number }) {
       },
     },
     yAxis: {
-      minLimit: minValue,
       label: {
         formatter: (text, item, index) => {
           const num = parseFloat(text)
@@ -291,6 +308,7 @@ function priceFill(cost: number): string {
   if (percent > 100) {
     percent = 100
   }
+  if (percent < 0) percent = 0
   const hue = Number(minHue + step * percent).toFixed(0)
 
   return `hsl(${hue}, 70%, 70%)`

@@ -25,7 +25,10 @@ export default function OutdoorTemperature(props: { height: number }) {
         influxdb.getQuery({
           id: 'outdoor',
           db: 'sensors',
-          query: `SELECT mean("value") AS "temperature" FROM "sensors"."autogen"."temperature" WHERE time > now() - 24h AND "name"='Outdoor' GROUP BY time(10m), "source" FILL(previous)`,
+          query: `SELECT mean("value") AS "temperature" 
+                  FROM "sensors"."autogen"."temperature" 
+                  WHERE time > now() - 24h AND "name"='Outdoor' 
+                  GROUP BY time(10m), "source" FILL(previous)`,
         }),
       )
     }
@@ -119,7 +122,7 @@ export default function OutdoorTemperature(props: { height: number }) {
         means[i].value = (v + next) / 2
       }
     })
-    values = values.concat(means)
+    values = means.concat(values)
   }
 
   let annotation = '-'
@@ -152,9 +155,9 @@ export default function OutdoorTemperature(props: { height: number }) {
     yField: 'value',
     padding: 'auto',
     color: [
-      'rgba(9, 121, 119, 0.2)',
-      'rgba(9, 121, 119, 0.2)',
       'rgba(9, 121, 10,1)',
+      'rgba(9, 121, 119, 0.2)',
+      'rgba(9, 121, 119, 0.2)',
     ],
     isStack: false,
 
