@@ -6,16 +6,15 @@ import { formatNumber } from 'src/lib/helpers'
 import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 import * as influxdb from 'src/lib/slices/influxdb'
 import * as tibber from 'src/lib/slices/tibber'
-import * as config from 'src/lib/slices/config'
 
 import { SerializedError } from '@reduxjs/toolkit'
 
 import * as lib from './Summary.lib'
+import * as config from '../../lib/slices/config'
 
 export default function Summary(props: { height: number }) {
   const dispatch = useAppDispatch()
   const includeTax = useSelector(config.selector).includeTaxes
-  // const gridHours = useSelector(influxdb.selectSeriesValues('gridPower', 0))
   const gridMinutes = useSelector(influxdb.selectSeriesValues('gridMinutes', 0))
   const pvPeakValues = useSelector(influxdb.selectSeriesValues('pvPeak', 0))
 
@@ -144,8 +143,9 @@ export default function Summary(props: { height: number }) {
   const exported = lib.GridExport(gridMinutes)
 
   const totalPaidSEK = lib.TotalCostSEK(gridMinutes, todayPrice, includeTax)
-  const netCostSEK =
-    totalPaidSEK + lib.TotalGainSEK(gridMinutes, todayPrice, includeTax)
+  const totalGainSEK =
+    lib.TotalGainSEK(gridMinutes, todayPrice, includeTax) * -1
+  const netCostSEK = totalPaidSEK - totalGainSEK
 
   const selfUsage = lib.SelfUsage(
     pvMinutes,
@@ -196,7 +196,7 @@ export default function Summary(props: { height: number }) {
         value: formatNumber(selfUsage.kWh, ' kWh', { precision: 1 }),
         alt: {
           title: 'Besparing:',
-          value: formatNumber(selfUsage.potentialCost, ' SEK', {
+          value: formatNumber(selfUsage.potentialCost, ' kr', {
             precision: 1,
           }),
         },
@@ -219,7 +219,9 @@ export default function Summary(props: { height: number }) {
       },
       {
         title: 'Total kostnad:',
-        value: formatNumber(netCostSEK, ' SEK', { precision: 0 }),
+        value: `${totalPaidSEK.toFixed(0)} - ${totalGainSEK.toFixed(
+          0,
+        )} = ${netCostSEK.toFixed(0)} kr`,
         alt: {
           title: 'Snittpris:',
           value: formatNumber(averagePaidPrice, ' öre/kWh', {

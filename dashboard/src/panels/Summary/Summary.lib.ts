@@ -120,8 +120,8 @@ export function summedCost(
       return prev
     }
 
-    const fees = includeTax ? buyTaxesPerkWh / 60 : 0
-    const benefits = includeTax ? sellBenefitsPerkWh / 60 : 0
+    const fees = includeTax ? buyTaxesPerkWh : 0
+    const benefits = includeTax ? sellBenefitsPerkWh : 0
 
     const price =
       curr.value > 0 ? priceNode.total + fees : priceNode.energy + benefits

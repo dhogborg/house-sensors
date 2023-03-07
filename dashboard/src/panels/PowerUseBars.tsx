@@ -271,8 +271,6 @@ export default function PowerUseBars(props: { height: number }) {
       },
     },
 
-    annotations,
-
     xAxis: {
       tickCount: 24,
       label: {
@@ -296,7 +294,7 @@ export default function PowerUseBars(props: { height: number }) {
 
   return (
     <div className="panel">
-      <Column {...config} />
+      <Column {...config} annotations={annotations} />
     </div>
   )
 }
