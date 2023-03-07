@@ -27,7 +27,7 @@ export default function OutdoorTemperature(props: { height: number }) {
           db: 'sensors',
           query: `SELECT mean("value") AS "temperature" 
                   FROM "sensors"."autogen"."temperature" 
-                  WHERE time > now() - 24h AND "name"='Outdoor' 
+                  WHERE time > now() - 24h AND "name"='Outdoor' AND "source" != 'pi-probe'
                   GROUP BY time(10m), "source" FILL(previous)`,
         }),
       )
@@ -64,8 +64,8 @@ export default function OutdoorTemperature(props: { height: number }) {
 
   if (query.series) {
     values = query.series.reduce<influxdb.Series['values']>((prev, series) => {
-      if (series.tags.source === 'Netatmo') {
-        current.netatmo = series.values[series.values.length - 1]?.value
+      if (series.tags.source === 'PiProbe') {
+        current.piprobe = series.values[series.values.length - 1]?.value
       }
       if (series.tags.source === 'Aqara') {
         current.aqara = series.values[series.values.length - 1]?.value
@@ -154,11 +154,15 @@ export default function OutdoorTemperature(props: { height: number }) {
     xField: 'time',
     yField: 'value',
     padding: 'auto',
-    color: [
-      'rgba(9, 121, 10,1)',
-      'rgba(9, 121, 119, 0.2)',
-      'rgba(9, 121, 119, 0.2)',
-    ],
+
+    color: (datum) => {
+      switch (datum.category) {
+        case 'Mean':
+          return 'rgba(9, 121, 10,1)'
+        default:
+          return 'rgba(9, 121, 119, 0.2)'
+      }
+    },
     isStack: false,
 
     state: {},
