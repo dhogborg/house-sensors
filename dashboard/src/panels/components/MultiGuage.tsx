@@ -4,6 +4,7 @@ export interface MultiGaugeProps {
   height: number
 
   background?: string
+  arcWidth?: number
   fillColor?: string
 
   elements: {
@@ -15,6 +16,9 @@ export interface MultiGaugeProps {
 
   title?: string
   titleStyle?: string
+
+  mainStyle?: string
+  auxStyle?: string
 
   // display values
   consume?: () => string
@@ -89,7 +93,7 @@ export const MultiGauge = function (props: MultiGaugeProps) {
       context.stroke()
     }
 
-    drawArc(props.fillColor || '#e5e5e5', defaultWidth, 100)
+    drawArc(props.fillColor || '#e5e5e5', props.arcWidth ?? defaultWidth, 100)
 
     props.elements.forEach((element, i) => {
       const defaultColor = defaultColors[i % defaultColors.length]
@@ -107,21 +111,21 @@ export const MultiGauge = function (props: MultiGaugeProps) {
       context.fillText(props.title, canvas.width * 0.5, canvas.height * 0.825)
     }
 
-    const offsetTop = -0.06
+    const offsetTop = -0.05
 
     if (props.solar) {
-      context.font = '30px sans-serif'
+      context.font = props.auxStyle ?? '30px sans-serif'
       context.fillStyle = '#ffffff'
       context.textAlign = 'center'
       context.fillText(
         props.solar(),
         canvas.width * 0.5,
-        canvas.height * (0.425 + offsetTop),
+        canvas.height * (0.42 + offsetTop),
       )
     }
 
     if (props.consume) {
-      context.font = '60px sans-serif'
+      context.font = props.mainStyle ?? '60px sans-serif'
       context.fillStyle = '#ffffff'
       context.textAlign = 'center'
       context.fillText(
@@ -132,13 +136,13 @@ export const MultiGauge = function (props: MultiGaugeProps) {
     }
 
     if (props.grid) {
-      context.font = '30px sans-serif'
+      context.font = props.auxStyle ?? '30px sans-serif'
       context.fillStyle = '#ffffff'
       context.textAlign = 'center'
       context.fillText(
         props.grid(),
         canvas.width * 0.5,
-        canvas.height * (0.675 + offsetTop),
+        canvas.height * (0.68 + offsetTop),
       )
     }
   }, [canvas, props, width])
