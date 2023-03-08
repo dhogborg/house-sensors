@@ -48,9 +48,9 @@ export const StringGauges = (props: { height: number }) => {
       // message is Buffer
       const payload = JSON.parse(message.toString())
       const values = {
-        voltage: payload.udc.val,
-        temperature: payload.temp.val,
-        power: payload.ipv.val,
+        voltage: parseFloat(payload.udc.val),
+        temperature: parseFloat(payload.temp.val),
+        power: parseFloat(payload.upv.val) * parseFloat(payload.ipv.val),
       }
 
       switch (payload.id.val) {
@@ -98,7 +98,7 @@ function SsoGauge(props: {
   sso: Sso
   max: number
 }) {
-  const { power, voltage, temperature } = props.sso
+  const { power, temperature } = props.sso
   const percentage = (power / props.max) * 100
   return (
     <MultiGauge
@@ -109,9 +109,6 @@ function SsoGauge(props: {
       elements={[{ percentage, width: 20, color: '#fee1a7' }]}
       consume={() => {
         return formatPower(power)
-      }}
-      solar={() => {
-        return formatNumber(voltage, 'V', { precision: 0 })
       }}
       grid={() => {
         return formatNumber(temperature, '°', { precision: 1 })
@@ -127,13 +124,18 @@ export const StringByDirection = (props: { height: number }) => {
 
   useEffect(() => {
     const load = () => {
+      const from = new Date()
+      from.setHours(6, 0, 0, 0)
+      const to = new Date()
+      to.setHours(21, 0, 0, 0)
+
       dispatch(
         influxdb.getQuery({
           id: 'strings',
           db: 'energy',
-          query: `SELECT mean("power") AS "mean_power" 
-            FROM "energy"."autogen"."sso" 
-            WHERE time > now() - ${minSince6Am()}m
+          query: `SELECT mean("power") AS "mean_power"
+            FROM "energy"."autogen"."sso"
+            WHERE time > '${from.toISOString()}' AND time < '${to.toISOString()}'
             GROUP BY time(1m), "direction" FILL(null)`,
         }),
       )
@@ -191,7 +193,7 @@ export const StringByDirection = (props: { height: number }) => {
       }
     },
     yAxis: {
-      min: 15,
+      min: 0,
     },
 
     animation: false,
@@ -240,13 +242,18 @@ export const StringsTotal = (props: { height: number }) => {
 
   useEffect(() => {
     const load = () => {
+      const from = new Date()
+      from.setHours(6, 0, 0, 0)
+      const to = new Date()
+      to.setHours(21, 0, 0, 0)
+
       dispatch(
         influxdb.getQuery({
           id: 'strings_combined',
           db: 'energy',
           query: `SELECT mean("power") AS "mean_power" 
               FROM "energy"."autogen"."pv" 
-              WHERE time > now() - ${minSince6Am()}m
+              WHERE time > '${from.toISOString()}' AND time < '${to.toISOString()}'
               GROUP BY time(1m) FILL(null)`,
         }),
       )
@@ -280,7 +287,7 @@ export const StringsTotal = (props: { height: number }) => {
 
     color: ['#fee1a7'],
     yAxis: {
-      min: 15,
+      min: 0,
     },
 
     animation: false,
@@ -323,14 +330,7 @@ export const StringsTotal = (props: { height: number }) => {
 
 function formatPower(power: number): string {
   if (power > 999 || power < -999) {
-    return formatNumber(power / 999, ' kW', { precision: 2 })
+    return formatNumber(power / 999, ' kW', { precision: 1 })
   }
   return formatNumber(power, ' W', { precision: 0 })
-}
-
-function minSince6Am(): number {
-  const t = new Date()
-  t.setHours(6, 0, 0, 0)
-  const now = new Date().getTime()
-  return Math.floor((now - t.getTime()) / 1000 / 60)
 }
