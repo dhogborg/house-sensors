@@ -74,18 +74,13 @@ export const StringGauges = (props: { height: number }) => {
     <div className="panel">
       <Row>
         <Col span={8}>
-          <SsoGauge height={props.height} sso={east} max={5000} title="East" />
+          <SsoGauge height={props.height} sso={east} max={5200} title="Öst" />
         </Col>
         <Col span={8}>
-          <SsoGauge
-            height={props.height}
-            sso={north}
-            max={6000}
-            title="North"
-          />
+          <SsoGauge height={props.height} sso={north} max={6370} title="Norr" />
         </Col>
         <Col span={8}>
-          <SsoGauge height={props.height} sso={west} max={5000} title="West" />
+          <SsoGauge height={props.height} sso={west} max={4800} title="Väst" />
         </Col>
       </Row>
     </div>
