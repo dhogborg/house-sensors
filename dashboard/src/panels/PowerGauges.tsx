@@ -108,7 +108,7 @@ export function PowerLive(props: { height: number }) {
       >
         <Row>
           <Col xs={24}>
-            <StringGauges height={200} />
+            <StringGauges height={175} />
           </Col>
           <Col xs={24} md={12}>
             <StringsTotal height={250} />

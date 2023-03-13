@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 import * as mqtt from 'src/lib/mqtt'
 
-import { refresh, time, theme } from 'src/lib/config'
+import { refresh, theme } from 'src/lib/config'
 import { formatNumber } from 'src/lib/helpers'
 import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 
@@ -58,13 +58,13 @@ export const StringGauges = (props: { height: number }) => {
   return (
     <div className="panel">
       <Row>
-        <Col span={8}>
-          <SsoGauge height={props.height} sso={east} max={5200} title="Öst" />
-        </Col>
-        <Col span={8}>
+        <Col xs={{ offset: 6, span: 12 }} md={{ offset: 0, span: 8 }}>
           <SsoGauge height={props.height} sso={north} max={6370} title="Norr" />
         </Col>
-        <Col span={8}>
+        <Col xs={{ offset: 0, span: 12 }} md={{ offset: 0, span: 8 }}>
+          <SsoGauge height={props.height} sso={east} max={5200} title="Öst" />
+        </Col>
+        <Col xs={{ offset: 0, span: 12 }} md={{ offset: 0, span: 8 }}>
           <SsoGauge height={props.height} sso={west} max={4800} title="Väst" />
         </Col>
       </Row>
