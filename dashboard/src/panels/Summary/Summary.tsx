@@ -101,16 +101,23 @@ export default function Summary(props: { height: number }) {
 
   const [heatPower, setHeatPower] = useState<number | undefined>(undefined)
   useEffect(() => {
-    mqtt.subscribe('zigbee2mqtt/0x0004740000847cf5', (payload) => {
-      let power = payload.apparentPower - 37
-      if (power < 0) {
-        power = 0
-      } else {
-        power = power * 0.93
-      }
+    const unSub = mqtt.subscribe(
+      'zigbee2mqtt/0x0004740000847cf5',
+      (payload) => {
+        let power = payload.apparentPower - 37
+        if (power < 0) {
+          power = 0
+        } else {
+          power = power * 0.93
+        }
 
-      setHeatPower(power)
-    })
+        setHeatPower(power)
+      },
+    )
+
+    return () => {
+      unSub()
+    }
   }, [setHeatPower])
 
   const totalConsumedWh = lib.TotalConsumedWh(loadMinutes)

@@ -8,6 +8,9 @@ import * as influxdb from 'src/lib/slices/influxdb'
 
 import { Gauge, GaugeConfig } from '@ant-design/charts'
 import { MultiGauge } from './components/MultiGuage'
+import { Col, Modal, Row } from 'antd'
+
+import { StringByDirection, StringGauges, StringsTotal } from './Strings'
 
 export const ColorSolar = '#fee1a7'
 export const ColorSell = '#30BF78'
@@ -17,9 +20,10 @@ export function PowerLive(props: { height: number }) {
   const [solarPower, setSolarPower] = useState(0)
   const [consumePower, setConsumePower] = useState(0)
   const [gridPower, setGridPower] = useState(0)
+  const [modalOpen, setModalOpen] = useState(false)
 
   useEffect(() => {
-    mqtt.subscribe('ehub', (payload: any) => {
+    const unSub = mqtt.subscribe('ehub', (payload: any) => {
       setSolarPower(() => {
         return parseFloat(payload.ppv.val)
       })
@@ -38,6 +42,10 @@ export function PowerLive(props: { height: number }) {
         )
       })
     })
+
+    return () => {
+      unSub()
+    }
   }, [setSolarPower, setConsumePower, setGridPower])
 
   const max = 9000
@@ -74,6 +82,7 @@ export function PowerLive(props: { height: number }) {
       <MultiGauge
         height={props.height}
         elements={elements}
+        onClick={() => setModalOpen(true)}
         consume={() => {
           return formatPower(consumePower)
         }}
@@ -88,6 +97,27 @@ export function PowerLive(props: { height: number }) {
         }}
         title="Nuvarande förbrk."
       />
+      <Modal
+        title="Solar Strings"
+        centered
+        visible={modalOpen}
+        onOk={() => setModalOpen(false)}
+        okText="Close"
+        onCancel={() => setModalOpen(false)}
+        width={850}
+      >
+        <Row>
+          <Col xs={24}>
+            <StringGauges height={200} />
+          </Col>
+          <Col xs={24} md={12}>
+            <StringsTotal height={250} />
+          </Col>
+          <Col xs={24} md={12}>
+            <StringByDirection height={250} />
+          </Col>
+        </Row>
+      </Modal>
     </div>
   )
 }

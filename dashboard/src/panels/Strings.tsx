@@ -9,7 +9,6 @@ import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 import * as influxdb from 'src/lib/slices/influxdb'
 
 import { Line, LineConfig } from '@ant-design/charts'
-import { SerializedError } from '@reduxjs/toolkit'
 import { MultiGauge } from './components/MultiGuage'
 import { Col, Row } from 'antd'
 
@@ -31,9 +30,9 @@ export const StringGauges = (props: { height: number }) => {
   const [north, setNorth] = useState<Sso>(empty)
 
   useEffect(() => {
-    mqtt.subscribe('sso', (payload) => {
+    const unSub = mqtt.subscribe('sso', (payload) => {
       const values = {
-        voltage: parseFloat(payload.udc.val),
+        voltage: parseFloat(payload.upv.val),
         temperature: parseFloat(payload.temp.val),
         power: parseFloat(payload.upv.val) * parseFloat(payload.ipv.val),
       }
@@ -50,6 +49,10 @@ export const StringGauges = (props: { height: number }) => {
           break
       }
     })
+
+    return () => {
+      unSub()
+    }
   }, [])
 
   return (
@@ -82,8 +85,11 @@ function SsoGauge(props: {
       height={props.height}
       arcWidth={10}
       auxStyle={'25px sans-serif'}
-      mainStyle={'40px sans-serif'}
+      mainStyle={'45px sans-serif'}
       elements={[{ percentage, width: 20, color: '#fee1a7' }]}
+      solar={() => {
+        return `${props.sso.voltage.toFixed(0)} V`
+      }}
       consume={() => {
         return formatPower(power)
       }}

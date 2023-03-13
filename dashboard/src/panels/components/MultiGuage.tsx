@@ -25,6 +25,8 @@ export interface MultiGaugeProps {
   consume?: () => string
   solar?: () => string
   grid?: () => string
+
+  onClick?: () => void
 }
 
 const defaultColors = ['#BDD9BF', '#FFC857', '#2E4052', '#CCC5B9', '#FFFCF2']
@@ -35,16 +37,28 @@ export const MultiGauge = function (props: MultiGaugeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   const windowSize = useWindowSize()
-  const [width, setWidth] = useState(200)
+  // const [width, setWidth] = useState(200)
+  const [containerSize, setContainerSize] = useState({
+    width: 200,
+    height: 200,
+  })
 
   const container = containerRef.current
   useEffect(() => {
     if (container) {
-      setWidth(() => {
-        return container.clientWidth
+      setContainerSize(() => {
+        const size =
+          container.clientWidth > container.clientHeight
+            ? container.clientHeight
+            : container.clientWidth
+
+        return {
+          width: size,
+          height: size,
+        }
       })
     }
-  }, [container, windowSize.width])
+  }, [container, windowSize.width, windowSize.height])
 
   const canvas = canvasRef.current
   useEffect(() => {
@@ -52,10 +66,10 @@ export const MultiGauge = function (props: MultiGaugeProps) {
       return
     }
 
-    canvas.height = props.height * 2
-    canvas.style.height = props.height + 'px'
-    canvas.width = width * 2
-    canvas.style.width = width + 'px'
+    canvas.height = containerSize.height * 2
+    canvas.style.height = containerSize.height + 'px'
+    canvas.width = containerSize.width * 2
+    canvas.style.width = containerSize.width + 'px'
 
     const context = canvas.getContext('2d')
     if (!context) {
@@ -147,11 +161,12 @@ export const MultiGauge = function (props: MultiGaugeProps) {
         canvas.height * (0.68 + offsetTop),
       )
     }
-  }, [canvas, props, width])
+  }, [canvas, props, containerSize])
 
   return (
     <div
       ref={containerRef}
+      onClick={() => props.onClick?.()}
       className="multi-gauge-container"
       style={{ height: props.height, width: '100%' }}
     >

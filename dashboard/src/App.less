@@ -1,7 +1,11 @@
 @import 'antd/dist/antd.less';
 
+:root {
+  --default-background: #141414;
+}
+
 body {
-  background: #141414;
+  background: var(--default-background);
 }
 
 * {
@@ -17,7 +21,7 @@ body {
 }
 
 .panel {
-  background: #141414;
+  background: var(--default-background);
   border-radius: 2px;
   padding: 5px;
   color: white;
@@ -49,4 +53,28 @@ dd {
   margin: 2px;
   text-align: right;
   font-size: 13px;
+}
+
+.multi-gauge-container canvas {
+  display: block;
+  margin: 0px auto;
+}
+
+.ant-modal-header {
+  display: none;
+}
+.ant-modal-body {
+  padding: 20px 10px;
+}
+.ant-modal-footer {
+  display: none;
+}
+.ant-modal-content,
+.ant-modal-header,
+.ant-modal-footer {
+  background: var(--default-background);
+}
+
+.ant-modal-close-x {
+  color: white;
 }

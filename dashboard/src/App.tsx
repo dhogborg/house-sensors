@@ -47,17 +47,6 @@ function App() {
             <PowerUseBars height={250} />
           </Col>
         </Row>
-        <Row gutter={gutter}>
-          <Col xs={24} md={12}>
-            <StringGauges height={175} />
-          </Col>
-          <Col xs={24} md={6}>
-            <StringsTotal height={175} />
-          </Col>
-          <Col xs={24} md={6}>
-            <StringByDirection height={175} />
-          </Col>
-        </Row>
       </div>
     </div>
   )
