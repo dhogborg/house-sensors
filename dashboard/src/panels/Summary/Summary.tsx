@@ -1,5 +1,5 @@
 import { Col, Row } from 'antd'
-import mqtt from 'precompiled-mqtt'
+import * as mqtt from 'src/lib/mqtt'
 import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { formatNumber } from 'src/lib/helpers'
@@ -101,26 +101,7 @@ export default function Summary(props: { height: number }) {
 
   const [heatPower, setHeatPower] = useState<number | undefined>(undefined)
   useEffect(() => {
-    const client = mqtt.connect('mqtt://192.168.116.232:8083')
-
-    client.on('connect', function () {
-      console.log('mqtt connected')
-
-      client.subscribe(
-        'zigbee2mqtt/0x0004740000847cf5',
-        function (err: SerializedError) {
-          if (err) {
-            console.error(err)
-          }
-          console.log('subscribed topic: zigbee2mqtt/0x0004740000847cf5')
-        },
-      )
-    })
-
-    client.on('message', function (topic: string, message: any) {
-      // message is Buffer
-      const payload = JSON.parse(message.toString())
-
+    mqtt.subscribe('zigbee2mqtt/0x0004740000847cf5', (payload) => {
       let power = payload.apparentPower - 37
       if (power < 0) {
         power = 0
@@ -130,9 +111,6 @@ export default function Summary(props: { height: number }) {
 
       setHeatPower(power)
     })
-    return () => {
-      client.end()
-    }
   }, [setHeatPower])
 
   const totalConsumedWh = lib.TotalConsumedWh(loadMinutes)

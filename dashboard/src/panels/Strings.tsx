@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import mqtt from 'precompiled-mqtt'
+import * as mqtt from 'src/lib/mqtt'
 
 import { refresh, time, theme } from 'src/lib/config'
 import { formatNumber } from 'src/lib/helpers'
@@ -31,22 +31,7 @@ export const StringGauges = (props: { height: number }) => {
   const [north, setNorth] = useState<Sso>(empty)
 
   useEffect(() => {
-    const client = mqtt.connect('mqtt://192.168.116.232:8083')
-
-    client.on('connect', function () {
-      console.log('mqtt connected')
-
-      client.subscribe('sso', function (err: SerializedError) {
-        if (err) {
-          console.error(err)
-        }
-        console.log('subscribed topic: sso')
-      })
-    })
-
-    client.on('message', function (topic: string, message: any) {
-      // message is Buffer
-      const payload = JSON.parse(message.toString())
+    mqtt.subscribe('sso', (payload) => {
       const values = {
         voltage: parseFloat(payload.udc.val),
         temperature: parseFloat(payload.temp.val),
@@ -65,9 +50,6 @@ export const StringGauges = (props: { height: number }) => {
           break
       }
     })
-    return () => {
-      client.end()
-    }
   }, [])
 
   return (

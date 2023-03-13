@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useWindowSize } from '../../lib/hooks'
 
 export interface MultiGaugeProps {
   height: number
@@ -33,6 +34,7 @@ export const MultiGauge = function (props: MultiGaugeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  const windowSize = useWindowSize()
   const [width, setWidth] = useState(200)
 
   const container = containerRef.current
@@ -42,7 +44,7 @@ export const MultiGauge = function (props: MultiGaugeProps) {
         return container.clientWidth
       })
     }
-  }, [container])
+  }, [container, windowSize.width])
 
   const canvas = canvasRef.current
   useEffect(() => {

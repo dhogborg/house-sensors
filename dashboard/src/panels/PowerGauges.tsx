@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
 
-import mqtt from 'precompiled-mqtt'
-
 import { deepEqual, formatNumber } from 'src/lib/helpers'
 import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
+import * as mqtt from 'src/lib/mqtt'
 
 import * as influxdb from 'src/lib/slices/influxdb'
 
 import { Gauge, GaugeConfig } from '@ant-design/charts'
-import { SerializedError } from '@reduxjs/toolkit'
 import { MultiGauge } from './components/MultiGuage'
 
 export const ColorSolar = '#fee1a7'
@@ -21,23 +19,7 @@ export function PowerLive(props: { height: number }) {
   const [gridPower, setGridPower] = useState(0)
 
   useEffect(() => {
-    const client = mqtt.connect('mqtt://192.168.116.232:8083')
-
-    client.on('connect', function () {
-      console.log('mqtt connected')
-
-      client.subscribe('ehub', function (err: SerializedError) {
-        if (err) {
-          console.error(err)
-        }
-        console.log('subscribed topic: ehub')
-      })
-    })
-
-    client.on('message', function (topic: string, message: any) {
-      // message is Buffer
-      const payload = JSON.parse(message.toString())
-
+    mqtt.subscribe('ehub', (payload: any) => {
       setSolarPower(() => {
         return parseFloat(payload.ppv.val)
       })
@@ -56,9 +38,6 @@ export function PowerLive(props: { height: number }) {
         )
       })
     })
-    return () => {
-      client.end()
-    }
   }, [setSolarPower, setConsumePower, setGridPower])
 
   const max = 9000
