@@ -24,6 +24,10 @@ const empty = {
   power: 0,
 }
 
+const WestColor = '#3481c9'
+const EastColor = '#be3d5e'
+const NorthColor = '#30b673'
+
 export const StringGauges = (props: { height: number }) => {
   const [east, setEast] = useState<Sso>(empty)
   const [west, setWest] = useState<Sso>(empty)
@@ -59,13 +63,31 @@ export const StringGauges = (props: { height: number }) => {
     <div className="panel">
       <Row>
         <Col xs={{ offset: 6, span: 12 }} md={{ offset: 0, span: 8 }}>
-          <SsoGauge height={props.height} sso={north} max={6370} title="Norr" />
+          <SsoGauge
+            height={props.height}
+            sso={north}
+            max={6370}
+            color={NorthColor}
+            title="Norr"
+          />
         </Col>
         <Col xs={{ offset: 0, span: 12 }} md={{ offset: 0, span: 8 }}>
-          <SsoGauge height={props.height} sso={east} max={5200} title="Öst" />
+          <SsoGauge
+            height={props.height}
+            sso={east}
+            max={5200}
+            color={EastColor}
+            title="Öst"
+          />
         </Col>
         <Col xs={{ offset: 0, span: 12 }} md={{ offset: 0, span: 8 }}>
-          <SsoGauge height={props.height} sso={west} max={4800} title="Väst" />
+          <SsoGauge
+            height={props.height}
+            sso={west}
+            max={4800}
+            color={WestColor}
+            title="Väst"
+          />
         </Col>
       </Row>
     </div>
@@ -77,6 +99,7 @@ function SsoGauge(props: {
   height: number
   sso: Sso
   max: number
+  color: string
 }) {
   const { power, temperature } = props.sso
   const percentage = (power / props.max) * 100
@@ -86,7 +109,7 @@ function SsoGauge(props: {
       arcWidth={10}
       auxStyle={'25px sans-serif'}
       mainStyle={'45px sans-serif'}
-      elements={[{ percentage, width: 20, color: '#fee1a7' }]}
+      elements={[{ percentage, width: 20, color: props.color }]}
       solar={() => {
         return `${props.sso.voltage.toFixed(0)} V`
       }}
@@ -110,7 +133,7 @@ export const StringByDirection = (props: { height: number }) => {
       const from = new Date()
       from.setHours(6, 0, 0, 0)
       const to = new Date()
-      to.setHours(21, 0, 0, 0)
+      to.setHours(20, 0, 0, 0)
 
       dispatch(
         influxdb.getQuery({
@@ -119,7 +142,7 @@ export const StringByDirection = (props: { height: number }) => {
           query: `SELECT mean("power") AS "mean_power"
             FROM "energy"."autogen"."sso"
             WHERE time > '${from.toISOString()}' AND time < '${to.toISOString()}'
-            GROUP BY time(1m), "direction" FILL(null)`,
+            GROUP BY time(5m), "direction" FILL(null)`,
         }),
       )
     }
@@ -228,7 +251,7 @@ export const StringsTotal = (props: { height: number }) => {
       const from = new Date()
       from.setHours(6, 0, 0, 0)
       const to = new Date()
-      to.setHours(21, 0, 0, 0)
+      to.setHours(20, 0, 0, 0)
 
       dispatch(
         influxdb.getQuery({
@@ -237,7 +260,7 @@ export const StringsTotal = (props: { height: number }) => {
           query: `SELECT mean("power") AS "mean_power" 
               FROM "energy"."autogen"."pv" 
               WHERE time > '${from.toISOString()}' AND time < '${to.toISOString()}'
-              GROUP BY time(1m) FILL(null)`,
+              GROUP BY time(5m) FILL(null)`,
         }),
       )
     }

@@ -101,19 +101,10 @@ export default function Summary(props: { height: number }) {
 
   const [heatPower, setHeatPower] = useState<number | undefined>(undefined)
   useEffect(() => {
-    const unSub = mqtt.subscribe(
-      'zigbee2mqtt/0x0004740000847cf5',
-      (payload) => {
-        let power = payload.apparentPower - 37
-        if (power < 0) {
-          power = 0
-        } else {
-          power = power * 0.93
-        }
-
-        setHeatPower(power)
-      },
-    )
+    const unSub = mqtt.subscribe('tapo/p115/heatpump', (payload) => {
+      const { power } = payload
+      setHeatPower(power)
+    })
 
     return () => {
       unSub()

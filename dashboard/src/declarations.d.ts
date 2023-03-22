@@ -1,1 +1,1 @@
-declare module 'precompiled-mqtt'
+// declare module 'precompiled-mqtt'

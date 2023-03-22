@@ -37,7 +37,6 @@ export const MultiGauge = function (props: MultiGaugeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   const windowSize = useWindowSize()
-  // const [width, setWidth] = useState(200)
   const [containerSize, setContainerSize] = useState({
     width: 200,
     height: 200,
@@ -53,12 +52,12 @@ export const MultiGauge = function (props: MultiGaugeProps) {
             : container.clientWidth
 
         return {
-          width: size,
-          height: size,
+          width: size > 0 ? size : props.height,
+          height: size > 0 ? size : props.height,
         }
       })
     }
-  }, [container, windowSize.width, windowSize.height])
+  }, [container, windowSize.width, windowSize.height, props.height])
 
   const canvas = canvasRef.current
   useEffect(() => {
@@ -116,7 +115,7 @@ export const MultiGauge = function (props: MultiGaugeProps) {
       drawArc(
         element.color || defaultColor,
         element.width || defaultWidth,
-        element.percentage || 0,
+        element.percentage && element.percentage > 0 ? element.percentage : 0,
       )
     })
 

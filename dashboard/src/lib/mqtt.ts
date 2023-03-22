@@ -2,15 +2,21 @@ import { SerializedError } from '@reduxjs/toolkit'
 import mqtt from 'precompiled-mqtt'
 
 let client: any
-let connected = false
+let connecting: boolean
 
 export function getClient() {
-  if (!client) {
-    client = mqtt.connect('mqtt://192.168.116.232:8083')
-    client.on('connect', () => {
+  const connect = () => {
+    connecting = true
+    const c = mqtt.connect('mqtt://192.168.116.232:8083')
+    c.on('connect', () => {
       console.log('mqtt client connected')
-      connected = true
+      connecting = false
     })
+    return c
+  }
+
+  if (!client || (client && !connecting && !client.connected)) {
+    client = connect()
   }
 
   return client
@@ -38,7 +44,7 @@ export function subscribe(
     })
   }
 
-  if (connected) {
+  if (client.connected) {
     sub()
   } else {
     client.on('connect', () => {
