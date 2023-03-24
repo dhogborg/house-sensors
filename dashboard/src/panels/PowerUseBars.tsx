@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { batch, useSelector } from 'react-redux'
 
 import {
@@ -17,16 +17,32 @@ import * as tibber from 'src/lib/slices/tibber'
 import * as configSlice from 'src/lib/slices/config'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
+import { SelfUsage } from './Summary/Summary.lib'
+
+export const ColorSolar = '#fee1a7'
+export const ColorSell = '#30BF78'
+export const ColorBuy = '#f85e46'
+export const ColorProduction = ColorSell + '33'
+
+const Grain = '1m'
+
+type MasterNode = {
+  time: Date
+
+  load: number
+  import: number
+  export: number
+  selfUsage: number
+  solar: number
+}
 
 export default function PowerUseBars(props: { height: number }) {
   const dispatch = useAppDispatch()
   const includeTax = useSelector(configSlice.selector).includeTaxes
 
-  const heatpumpValues = useAppSelector(
-    influxdb.selectSeriesValues('heatpumpLoad', 0),
-  )
   const loadValues = useAppSelector(influxdb.selectSeriesValues('totalLoad', 0))
   const pvValues = useAppSelector(influxdb.selectSeriesValues('totalPv', 0))
+  const gridValues = useAppSelector(influxdb.selectSeriesValues('totalGrid', 0))
 
   const priceState = useAppSelector(tibber.selector)
 
@@ -36,30 +52,31 @@ export default function PowerUseBars(props: { height: number }) {
       batch(() => {
         dispatch(
           influxdb.getFluxQuery({
-            id: 'heatpumpLoad',
-            category: 'Värmepump',
+            id: 'totalGrid',
+            category: 'Grid',
             query: `
           from(bucket: "energy/autogen")
             |> range(start: -23h)
-            |> filter(fn: (r) => r._measurement == "heating" and (r._field == "power"))
-            |> aggregateWindow(every: 1m, fn: mean)
-            |> fill(value: 0.0)
-            |> aggregateWindow(every: 1h, fn: mean)
+            |> filter(fn: (r) => r._measurement == "grid" and (r._field == "power"))
+            |> filter(fn: (r) => r.phase == "combined")
+            |> aggregateWindow(every: ${Grain}, fn: mean)
             |> timeShift(duration: ${tzOffset})
-            |> yield(name: "heating")
+            |> fill(value: 0.0)
+            |> yield(name: "electricity")
           `,
           }),
         )
+
         dispatch(
           influxdb.getFluxQuery({
             id: 'totalLoad',
-            category: 'Konsumtion',
+            category: 'Load',
             query: `
           from(bucket: "energy/autogen")
             |> range(start: -23h)
             |> filter(fn: (r) => r._measurement == "load" and (r._field == "power"))
             |> filter(fn: (r) => r.phase == "combined")
-            |> aggregateWindow(every: 1h, fn: mean)
+            |> aggregateWindow(every: ${Grain}, fn: mean)
             |> timeShift(duration: ${tzOffset})
             |> fill(value: 0.0)
             |> yield(name: "electricity")
@@ -75,7 +92,7 @@ export default function PowerUseBars(props: { height: number }) {
           from(bucket: "energy/autogen")
             |> range(start: -23h)
             |> filter(fn: (r) => r._measurement == "pv" and (r._field == "power"))
-            |> aggregateWindow(every: 1h, fn: mean)
+            |> aggregateWindow(every: ${Grain}, fn: mean)
             |> timeShift(duration: ${tzOffset})
             |> fill(value: 0.0)
             |> yield(name: "electricity")
@@ -95,60 +112,81 @@ export default function PowerUseBars(props: { height: number }) {
     }
   }, [dispatch])
 
-  const heatpumpData = heatpumpValues?.map((hpValue, i) => {
-    let kwh = Math.round(hpValue.value) / 1000
-    // last hour isn't complete, so we have to factor in the percentage of the hour that has passed
-    if (i === heatpumpValues.length - 1) {
-      kwh = (new Date().getMinutes() / 60) * kwh
-    }
-    return {
-      ...hpValue,
-      value: kwh,
-    }
-  })
-
-  const loadData = loadValues?.map((totValue, i) => {
-    let kwh = Math.round(totValue.value) / 1000
-
-    // last hour isn't complete, so we have to factor in the percentage of the hour that has passed
-    if (i === loadValues.length - 1) {
-      const hourPassed = new Date().getMinutes() / 60
-      kwh = hourPassed * kwh
-    }
-
-    return {
-      time: totValue.time,
-      category: totValue.category,
-      value: kwh,
-    }
-  })
-
-  const pvData = pvValues?.map((pvValue, i) => {
-    let kwh = Math.round(pvValue.value) / 1000
-
-    // last hour isn't complete, so we have to factor in the percentage of the hour that has passed
-    if (i === pvValues.length - 1) {
-      const hourPassed = new Date().getMinutes() / 60
-      kwh = hourPassed * kwh
-    }
-
-    return {
-      time: pvValue.time,
-      category: pvValue.category,
-      value: kwh * -1,
-    }
-  })
-
-  let data: influxdb.Series['values'] = []
-  if (loadData) {
-    data = data.concat(loadData)
+  if (!loadValues || !pvValues || !gridValues) {
+    return null
   }
-  if (heatpumpData) {
-    data = data.concat(heatpumpData)
-  }
-  if (pvData) {
-    data = data.concat(pvData)
-  }
+
+  const masterInput = useMemo(() => {
+    const minutes = loadValues.map((loadNode, i) => {
+      const pvNode = pvValues[i]
+      const gridNode = gridValues[i]
+
+      return {
+        time: new Date(loadNode.time),
+
+        grid: (gridNode?.value ?? 0) / 1000 / 60,
+        load: (loadNode?.value ?? 0) / 1000 / 60,
+        solar: (pvNode?.value ?? 0) / 1000 / 60,
+      }
+    })
+
+    // reduce to hours
+    const hours: MasterNode[] = []
+    minutes.forEach((node) => {
+      const t = node.time
+      let curr: MasterNode = hours[hours.length - 1]
+      if (!curr || curr.time.getHours() !== t.getHours()) {
+        curr = {
+          time: t,
+
+          load: 0,
+          import: 0,
+          export: 0,
+          selfUsage: 0,
+          solar: 0,
+        }
+        hours.push(curr)
+      }
+
+      const selfUse = node.grid > 0 ? node.solar : node.load
+      const gridExport = node.grid < 0 ? node.grid : 0
+      const gridImport = node.grid > 0 ? node.grid : 0
+
+      curr.load += node.load
+      curr.export += gridExport
+      curr.import += gridImport
+      curr.selfUsage += selfUse
+      curr.solar += node.solar
+    })
+
+    return hours
+  }, [loadValues, gridValues, pvValues])
+
+  const data: influxdb.Series['values'] = masterInput.reduce((prev, node) => {
+    const nodes = [
+      {
+        time: node.time.toISOString(),
+        category: 'Import',
+        value: node.import,
+      },
+      {
+        time: node.time.toISOString(),
+        category: 'Egenanvändning',
+        value: node.selfUsage,
+      },
+      {
+        time: node.time.toISOString(),
+        category: 'Export',
+        value: node.export,
+      },
+      {
+        time: node.time.toISOString(),
+        category: 'Producerat',
+        value: node.solar * -1,
+      },
+    ]
+    return prev.concat(nodes)
+  }, [])
 
   let annotations: ColumnConfig['annotations'] = [
     {
@@ -244,13 +282,23 @@ export default function PowerUseBars(props: { height: number }) {
     yField: 'value',
     padding: 'auto',
     seriesField: 'category',
-    color: ['#fee1a7', '#7dbdba'],
 
+    color: (cat) => {
+      switch (cat.category) {
+        case 'Egenanvändning':
+          return ColorSolar
+        case 'Import':
+          return ColorBuy
+        case 'Export':
+          return ColorSell
+        case 'Producerat':
+          return ColorProduction
+      }
+    },
     theme,
     height: props.height,
 
     label: undefined,
-
     animation: false,
 
     legend: {
