@@ -51,52 +51,33 @@ export default function PowerUseBars(props: { height: number }) {
     const load = () => {
       batch(() => {
         dispatch(
-          influxdb.getFluxQuery({
+          influxdb.getQuery({
             id: 'totalGrid',
-            category: 'Grid',
-            query: `
-          from(bucket: "energy/autogen")
-            |> range(start: -23h)
-            |> filter(fn: (r) => r._measurement == "grid" and (r._field == "power"))
-            |> filter(fn: (r) => r.phase == "combined")
-            |> aggregateWindow(every: ${Grain}, fn: mean)
-            |> timeShift(duration: ${tzOffset})
-            |> fill(value: 0.0)
-            |> yield(name: "electricity")
-          `,
+            db: 'energy',
+            query: `SELECT mean("power") AS "mean_power" 
+            FROM "energy"."autogen"."grid" 
+            WHERE time > now() - 23h AND "phase"='combined' 
+            GROUP BY time(${Grain}) FILL(null)`,
           }),
         )
-
         dispatch(
-          influxdb.getFluxQuery({
+          influxdb.getQuery({
             id: 'totalLoad',
-            category: 'Load',
-            query: `
-          from(bucket: "energy/autogen")
-            |> range(start: -23h)
-            |> filter(fn: (r) => r._measurement == "load" and (r._field == "power"))
-            |> filter(fn: (r) => r.phase == "combined")
-            |> aggregateWindow(every: ${Grain}, fn: mean)
-            |> timeShift(duration: ${tzOffset})
-            |> fill(value: 0.0)
-            |> yield(name: "electricity")
-          `,
+            db: 'energy',
+            query: `SELECT mean("power") AS "mean_power" 
+            FROM "energy"."autogen"."load" 
+            WHERE time > now() - 23h AND "phase"='combined' 
+            GROUP BY time(${Grain}) FILL(null)`,
           }),
         )
-
         dispatch(
-          influxdb.getFluxQuery({
+          influxdb.getQuery({
             id: 'totalPv',
-            category: 'Produktion',
-            query: `
-          from(bucket: "energy/autogen")
-            |> range(start: -23h)
-            |> filter(fn: (r) => r._measurement == "pv" and (r._field == "power"))
-            |> aggregateWindow(every: ${Grain}, fn: mean)
-            |> timeShift(duration: ${tzOffset})
-            |> fill(value: 0.0)
-            |> yield(name: "electricity")
-          `,
+            db: 'energy',
+            query: `SELECT mean("power") AS "mean_power" 
+            FROM "energy"."autogen"."pv" 
+            WHERE time > now() - 23h 
+            GROUP BY time(${Grain}) FILL(null)`,
           }),
         )
       })
@@ -162,31 +143,34 @@ export default function PowerUseBars(props: { height: number }) {
     return hours
   }, [loadValues, gridValues, pvValues])
 
-  const data: influxdb.Series['values'] = masterInput.reduce((prev, node) => {
-    const nodes = [
-      {
-        time: node.time.toISOString(),
-        category: 'Import',
-        value: node.import,
-      },
-      {
-        time: node.time.toISOString(),
-        category: 'Egenanvändning',
-        value: node.selfUsage,
-      },
-      {
-        time: node.time.toISOString(),
-        category: 'Export',
-        value: node.export,
-      },
-      {
-        time: node.time.toISOString(),
-        category: 'Producerat',
-        value: node.solar * -1,
-      },
-    ]
-    return prev.concat(nodes)
-  }, [])
+  const data: influxdb.Series['values'] = masterInput.reduce(
+    (prev, node, i) => {
+      const nodes = [
+        {
+          time: node.time.toString(),
+          category: 'Import',
+          value: node.import,
+        },
+        {
+          time: node.time.toString(),
+          category: 'Egenanvändning',
+          value: node.selfUsage,
+        },
+        {
+          time: node.time.toString(),
+          category: 'Producerat',
+          value: (node.solar + node.export) * -1,
+        },
+        {
+          time: node.time.toString(),
+          category: 'Export',
+          value: node.export,
+        },
+      ]
+      return prev.concat(nodes)
+    },
+    [],
+  )
 
   let annotations: ColumnConfig['annotations'] = [
     {
@@ -200,28 +184,19 @@ export default function PowerUseBars(props: { height: number }) {
     },
   ]
 
-  annotations = annotations.concat(
-    loadValues.map((hour, i) => {
-      let loadKwh = hour.value / 1000
-      const { time } = hour
+  const priceNodes = [...priceState.nodes, ...priceState.today]
 
-      let priceNode = priceState.nodes.find((n) => {
+  annotations = annotations.concat(
+    masterInput.map((hour, i) => {
+      const { solar, load, time } = hour
+
+      const priceNode = priceNodes.find((n) => {
         const d1 = new Date(n.startsAt)
         const d2 = new Date(time)
         if (d1.getDate() !== d2.getDate()) return false
         if (d1.getHours() !== d2.getHours()) return false
         return true
       })
-
-      const pvValue = pvValues[i]
-      let pvKwh = pvValue?.value / 1000 ?? 0
-
-      if (i === loadValues.length - 1) {
-        // last hour isn't complete, so factor in the percentage of the hour that has passed
-        loadKwh = (new Date().getMinutes() / 60) * loadKwh
-        pvKwh = (new Date().getMinutes() / 60) * pvKwh
-        priceNode = tibber.now(priceState.today)
-      }
 
       const fees = includeTax
         ? (BUY_ADDED_TAX_CENTS + BUY_TRANSMISSION_FEE_CENTS) / 100
@@ -234,14 +209,14 @@ export default function PowerUseBars(props: { height: number }) {
       let netCost = 0
       let priceStr = ''
       if (priceNode) {
-        const cost = loadKwh > 0 ? loadKwh * (priceNode.total + fees) : 0
-        const gain = pvKwh * (priceNode.energy + benefits) * -1
+        const cost = load > 0 ? load * (priceNode.total + fees) : 0
+        const gain = solar * (priceNode.energy + benefits) * -1
         netCost = cost + gain
-        priceStr = Number(netCost).toFixed(2)
+        priceStr = Number(netCost * 100).toFixed(0)
       }
 
       let fill = 'rgba(0,0,0,0)'
-      fill = priceFill(netCost)
+      // fill = priceFill(netCost)
 
       return {
         type: 'text',
@@ -249,7 +224,7 @@ export default function PowerUseBars(props: { height: number }) {
 
         position: (xScale, yScale: any) => {
           const left = 2 + i * 4.1666
-          let top = 12
+          const top = 12
           return [
             `${left}%`, // left
             `${top}%`, // top
@@ -277,7 +252,7 @@ export default function PowerUseBars(props: { height: number }) {
 
   const config: ColumnConfig = {
     data,
-    isStack: false,
+    isStack: true,
     xField: 'time',
     yField: 'value',
     padding: 'auto',
@@ -312,6 +287,19 @@ export default function PowerUseBars(props: { height: number }) {
         return d.toLocaleDateString('sv-se') + ' ' + d.toLocaleTimeString()
       },
       formatter: (datum) => {
+        if (datum.category === 'Producerat') {
+          const node = masterInput.find(
+            (node) => node.time.toString() === datum.time,
+          )
+          if (node) {
+            datum.value = node.solar
+          }
+        }
+
+        if (datum.value < 0) {
+          datum.value = datum.value * -1
+        }
+
         return {
           name: datum.category,
           value: formatNumber(datum.value, ' kWh'),
