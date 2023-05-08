@@ -17,7 +17,6 @@ import * as tibber from 'src/lib/slices/tibber'
 import * as configSlice from 'src/lib/slices/config'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
-import { SelfUsage } from './Summary/Summary.lib'
 
 export const ColorSolar = '#fee1a7'
 export const ColorSell = '#30BF78'
@@ -212,7 +211,7 @@ export default function PowerUseBars(props: { height: number }) {
         const cost = load > 0 ? load * (priceNode.total + fees) : 0
         const gain = solar * (priceNode.energy + benefits) * -1
         netCost = cost + gain
-        priceStr = Number(netCost * 100).toFixed(0)
+        priceStr = formatNumber(netCost, '', { precision: 1 })
       }
 
       let fill = 'rgba(0,0,0,0)'

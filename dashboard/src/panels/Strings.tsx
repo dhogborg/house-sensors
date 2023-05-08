@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import * as mqtt from 'src/lib/mqtt'
 
@@ -245,7 +245,9 @@ export const StringsTotal = (props: { height: number }) => {
   const values = useAppSelector(
     influxdb.selectSeriesValues('strings_combined', 0),
   )
-
+  const ysterday = useAppSelector(
+    influxdb.selectSeriesValues('strings_ysterday_combined', 0),
+  )
   useEffect(() => {
     const load = () => {
       const from = new Date()
@@ -263,6 +265,20 @@ export const StringsTotal = (props: { height: number }) => {
               GROUP BY time(5m) FILL(null)`,
         }),
       )
+
+      const ysterdayStart = new Date(from.getTime() - 24 * 60 * 60 * 1000)
+      const ysterdayEnd = new Date(to.getTime() - 24 * 60 * 60 * 1000)
+
+      dispatch(
+        influxdb.getQuery({
+          id: 'strings_ysterday_combined',
+          db: 'energy',
+          query: `SELECT mean("power") AS "mean_power" 
+              FROM "energy"."autogen"."pv" 
+              WHERE time > '${ysterdayStart.toISOString()}' AND time < '${ysterdayEnd.toISOString()}'
+              GROUP BY time(5m) FILL(null)`,
+        }),
+      )
     }
 
     load()
@@ -275,10 +291,38 @@ export const StringsTotal = (props: { height: number }) => {
     }
   }, [dispatch])
 
-  let data: influxdb.Series['values'] = []
-  if (values) {
-    data = values
-  }
+  const data = useMemo(() => {
+    let data: influxdb.Series['values'] = []
+
+    if (ysterday) {
+      data = data.concat(
+        ysterday.map((node) => {
+          const t = new Date(node.time)
+          return {
+            ...node,
+            category: 'Yesterday',
+            time: new Date(t.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+          }
+        }),
+      )
+    }
+
+    if (values) {
+      data = data.concat(
+        values.map((node) => {
+          return {
+            ...node,
+            category: 'Today',
+            time: new Date(node.time).toISOString(),
+          }
+        }),
+      )
+    }
+
+    console.log(data)
+
+    return data
+  }, [ysterday, values])
 
   const config: LineConfig = {
     data: data,
@@ -291,7 +335,7 @@ export const StringsTotal = (props: { height: number }) => {
     smooth: true,
     legend: false,
 
-    color: ['#fee1a7'],
+    color: ['#999', '#fee1a7'],
     yAxis: {
       min: 0,
     },

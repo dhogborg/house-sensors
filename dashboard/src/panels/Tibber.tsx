@@ -12,6 +12,7 @@ import {
 } from 'src/lib/config'
 import { formatNumber } from 'src/lib/helpers'
 import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
+import * as influxdb from 'src/lib/slices/influxdb'
 
 interface priceNode {
   startsAt?: string
@@ -24,6 +25,8 @@ export default function PriceBars(props: { height: number }) {
   const tomorrow = useAppSelector(tibber.tomorrow)
   const today = useAppSelector(tibber.today)
   const includeFeesAndTax = useAppSelector(appConfig.selector).includeTaxes
+  const pvValues = useAppSelector(influxdb.selectSeriesValues('totalPv', 0))
+  const [solarHours, setSolarHours] = useState<{ [key: string]: boolean }>({})
 
   const [currentPrice, setCurrentPrice] = useState<{
     startsAt?: string
@@ -40,6 +43,15 @@ export default function PriceBars(props: { height: number }) {
       dispatch(tibber.get())
     }, minRemain + 1 * 60 * 1000) // add a minute extra so we don't race to the new data
   }, [dispatch])
+
+  useEffect(() => {
+    const hours = {}
+    pvValues.forEach((node) => {
+      const d = new Date(node.time)
+      hours[d.getHours()] = node.value > 10
+    })
+    setSolarHours(hours)
+  }, [pvValues])
 
   // UPdate the current price once every 10 seconds, if changed
   useEffect(() => {
@@ -111,23 +123,37 @@ export default function PriceBars(props: { height: number }) {
   )
 
   priceData = priceData.concat(
-    today.map((node) => {
-      return {
-        ...node,
-        category: 'sell_price',
-        price: Math.round((node.total - node.tax) * 100 + sellFeesAndTaxes),
-      }
-    }),
+    today
+      .map((node) => {
+        const d = new Date(node.startsAt)
+        let price = Math.round((node.total - node.tax) * 100 + sellFeesAndTaxes)
+        if (!solarHours[d.getHours()]) {
+          price = 0
+        }
+        return {
+          ...node,
+          category: 'sell_price',
+          price,
+        }
+      })
+      .filter((node) => node.price !== 0),
   )
 
   priceData = priceData.concat(
-    tomorrow.map((node) => {
-      return {
-        ...node,
-        category: 'sell_price',
-        price: Math.round((node.total - node.tax) * 100 + sellFeesAndTaxes),
-      }
-    }),
+    tomorrow
+      .map((node) => {
+        const d = new Date(node.startsAt)
+        let price = Math.round((node.total - node.tax) * 100 + sellFeesAndTaxes)
+        if (!solarHours[d.getHours()]) {
+          price = 0
+        }
+        return {
+          ...node,
+          category: 'sell_price',
+          price,
+        }
+      })
+      .filter((node) => node.price !== 0),
   )
 
   const segmentCount = today.length + tomorrow.length

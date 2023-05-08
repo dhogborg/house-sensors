@@ -7,8 +7,6 @@ import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 import * as influxdb from 'src/lib/slices/influxdb'
 import * as tibber from 'src/lib/slices/tibber'
 
-import { SerializedError } from '@reduxjs/toolkit'
-
 import * as lib from './Summary.lib'
 import * as config from '../../lib/slices/config'
 
@@ -25,14 +23,34 @@ export default function Summary(props: { height: number }) {
     influxdb.selectSeriesValues('pvPowerMinutes', 0),
   )
   const monthGridHours = useSelector(
-    influxdb.selectSeriesValues('month_summary', 0),
+    influxdb.selectSeriesValues('topGridHours', 0),
   )
   const heatpumpTotal = useSelector(
-    influxdb.selectSeriesValues('heatpump_total', 0),
+    influxdb.selectSeriesValues('heatpumpTotal', 0),
   )
 
   const todayPrice = useAppSelector(tibber.selector).today
   const [altView, setAltView] = useState(false)
+
+  useEffect(() => {
+    const now = new Date()
+    const firstOtMonth = now.getDate() * 24 * 60 + now.getMinutes()
+
+    dispatch(
+      influxdb.getFluxQuery({
+        id: 'topGridHours',
+        category: 'energy',
+        query: `from(bucket: "energy/autogen")
+      |> range(start: -${firstOtMonth}m)
+      |> filter(fn: (r) => r["_measurement"] == "grid")
+      |> filter(fn: (r) => r.phase == "combined")  
+      |> filter(fn: (r) => r["_field"] == "power")
+      |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+      |> aggregateWindow(every: 24h, fn: max, createEmpty: false)
+      |> yield(name: "mean")`,
+      }),
+    )
+  }, [dispatch])
 
   useEffect(() => {
     const load = () => {
@@ -74,15 +92,7 @@ export default function Summary(props: { height: number }) {
 
       dispatch(
         influxdb.getQuery({
-          id: 'month_summary',
-          db: 'energy',
-          query: `SELECT mean("power") FROM "energy"."autogen"."grid" WHERE time > now() - ${firstOtMonth}m AND "phase"='combined' GROUP BY time(1h)`,
-        }),
-      )
-
-      dispatch(
-        influxdb.getQuery({
-          id: 'heatpump_total',
+          id: 'heatpumpTotal',
           db: 'energy',
           query: `SELECT mean("power") AS "mean_power" FROM "energy"."autogen"."heating" WHERE time > now() - ${sinceMidnight}m  AND "type"='heatpump' GROUP BY time(1m) FILL(previous)`,
         }),
@@ -168,13 +178,13 @@ export default function Summary(props: { height: number }) {
         },
       },
       {
-        title: 'Egenanvändning:',
-        value: formatNumber(selfUsage.kWh, ' kWh', { precision: 1 }),
+        title: 'Besparing:',
+        value: formatNumber(selfUsage.potentialCost, ' kr', {
+          precision: 1,
+        }),
         alt: {
-          title: 'Besparing:',
-          value: formatNumber(selfUsage.potentialCost, ' kr', {
-            precision: 1,
-          }),
+          title: 'Egenanvändning:',
+          value: formatNumber(selfUsage.kWh, ' kWh', { precision: 1 }),
         },
       },
     ],
