@@ -4,7 +4,7 @@ import { combineReducers } from 'redux'
 
 import config from './slices/config'
 import influxdb from './slices/influxdb'
-import mqtt from './slices/influxdb'
+import mqtt from './slices/mqtt'
 import tibber from './slices/tibber'
 import yr from './slices/yr'
 

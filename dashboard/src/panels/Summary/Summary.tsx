@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react'
 import { Col, Row } from 'antd'
 
 import { formatNumber } from 'src/lib/helpers'
-import * as mqtt from 'src/lib/mqtt'
 import { useDispatch, useSelector } from 'src/lib/store'
 
 import * as config from 'src/lib/slices/config'
 import * as influxdb from 'src/lib/slices/influxdb'
+import * as mqtt from 'src/lib/slices/mqtt'
 import * as tibber from 'src/lib/slices/tibber'
 
 import * as lib from './Summary.lib'
@@ -111,17 +111,27 @@ export default function Summary(props: { height: number }) {
     }
   }, [dispatch])
 
+  const mqttStatus = useSelector(mqtt.selector).status
   const [heatPower, setHeatPower] = useState<number | undefined>(undefined)
   useEffect(() => {
-    const unSub = mqtt.subscribe('tapo/p115/heatpump', (payload) => {
-      const { power } = payload
-      setHeatPower(power)
-    })
+    if (mqttStatus !== 'connected') {
+      return
+    }
+    const topic = 'tapo/p115/heatpump'
+    dispatch(
+      mqtt.subscribe({
+        topic,
+        cb: (payload) => {
+          const { power } = payload
+          setHeatPower(power)
+        },
+      }),
+    )
 
     return () => {
-      unSub()
+      dispatch(mqtt.unsubscribe({ topic }))
     }
-  }, [setHeatPower])
+  }, [dispatch, mqttStatus])
 
   const totalConsumedWh = lib.TotalConsumedWh(loadMinutes)
   const peakPowerWatts = lib.PeakPowerWatts(monthGridHours)

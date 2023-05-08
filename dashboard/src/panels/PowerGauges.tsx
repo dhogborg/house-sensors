@@ -4,10 +4,10 @@ import { Gauge, GaugeConfig } from '@ant-design/charts'
 import { Col, Modal, Row } from 'antd'
 
 import { deepEqual, formatNumber } from 'src/lib/helpers'
-import * as mqtt from 'src/lib/mqtt'
 import { useDispatch, useSelector } from 'src/lib/store'
 
 import * as influxdb from 'src/lib/slices/influxdb'
+import * as mqtt from 'src/lib/slices/mqtt'
 
 import { StringByDirection, StringGauges, StringsTotal } from './Strings'
 import { MultiGauge } from './components/MultiGuage'
@@ -17,36 +17,47 @@ export const ColorSell = '#30BF78'
 export const ColorBuy = '#f85e46'
 
 export function PowerLive(props: { height: number }) {
+  const dispatch = useDispatch()
   const [solarPower, setSolarPower] = useState(0)
   const [consumePower, setConsumePower] = useState(0)
   const [gridPower, setGridPower] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
 
+  const mqttStatus = useSelector(mqtt.selector).status
   useEffect(() => {
-    const unSub = mqtt.subscribe('ehub', (payload: any) => {
-      setSolarPower(() => {
-        return parseFloat(payload.ppv.val)
-      })
-      setConsumePower(() => {
-        return (
-          parseFloat(payload.pload['L1']) +
-          parseFloat(payload.pload['L2']) +
-          parseFloat(payload.pload['L3'])
-        )
-      })
-      setGridPower(() => {
-        return (
-          parseFloat(payload.pext['L1']) +
-          parseFloat(payload.pext['L2']) +
-          parseFloat(payload.pext['L3'])
-        )
-      })
+    if (mqttStatus !== 'connected') {
+      return
+    }
+
+    const topic = 'ehub'
+    const subscribe = mqtt.subscribe({
+      topic,
+      cb: (payload: any) => {
+        setSolarPower(() => {
+          return parseFloat(payload.ppv.val)
+        })
+        setConsumePower(() => {
+          return (
+            parseFloat(payload.pload['L1']) +
+            parseFloat(payload.pload['L2']) +
+            parseFloat(payload.pload['L3'])
+          )
+        })
+        setGridPower(() => {
+          return (
+            parseFloat(payload.pext['L1']) +
+            parseFloat(payload.pext['L2']) +
+            parseFloat(payload.pext['L3'])
+          )
+        })
+      },
     })
+    dispatch(subscribe)
 
     return () => {
-      unSub()
+      dispatch(mqtt.unsubscribe({ topic }))
     }
-  }, [setSolarPower, setConsumePower, setGridPower])
+  }, [dispatch, mqttStatus])
 
   const max = 9000
 

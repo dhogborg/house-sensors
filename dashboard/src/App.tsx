@@ -2,22 +2,33 @@ import { useEffect } from 'react'
 
 import { Col, Row } from 'antd'
 
+import * as mqtt from './lib/slices/mqtt'
+
 import './App.less'
+import { useDispatch, useSelector } from './lib/store'
 import IndoorTemperature from './panels/IndoorTemperatureLine'
 import OutdoorTemperature from './panels/OutdoorTemperatureLine'
 import { PowerLive } from './panels/PowerGauges'
 import PowerUseBars from './panels/PowerUseBars'
-import { StringByDirection, StringGauges, StringsTotal } from './panels/Strings'
 import Summary from './panels/Summary'
 import PriceBars from './panels/Tibber'
 
 function App() {
+  const dispatch = useDispatch()
+  const mqttState = useSelector(mqtt.selector)
+
   const gutter = 0
   useEffect(() => {
     setTimeout(() => {
       window.location.reload()
     }, 1000 * 60 * 120)
   }, [])
+
+  useEffect(() => {
+    if (mqttState.status === 'idle') {
+      dispatch(mqtt.connect())
+    }
+  }, [dispatch, mqttState.status])
 
   return (
     <div className="App">

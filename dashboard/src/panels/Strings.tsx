@@ -5,10 +5,10 @@ import { Col, Row } from 'antd'
 
 import { refresh, theme } from 'src/lib/config'
 import { formatNumber } from 'src/lib/helpers'
-import * as mqtt from 'src/lib/mqtt'
 import { useDispatch, useSelector } from 'src/lib/store'
 
 import * as influxdb from 'src/lib/slices/influxdb'
+import * as mqtt from 'src/lib/slices/mqtt'
 
 import { MultiGauge } from './components/MultiGuage'
 
@@ -29,35 +29,46 @@ const EastColor = '#be3d5e'
 const NorthColor = '#30b673'
 
 export const StringGauges = (props: { height: number }) => {
+  const dispatch = useDispatch()
   const [east, setEast] = useState<Sso>(empty)
   const [west, setWest] = useState<Sso>(empty)
   const [north, setNorth] = useState<Sso>(empty)
 
+  const mqttStatus = useSelector(mqtt.selector).status
   useEffect(() => {
-    const unSub = mqtt.subscribe('sso', (payload) => {
-      const values = {
-        voltage: parseFloat(payload.upv.val),
-        temperature: parseFloat(payload.temp.val),
-        power: parseFloat(payload.upv.val) * parseFloat(payload.ipv.val),
-      }
+    if (mqttStatus !== 'connected') {
+      return
+    }
 
-      switch (payload.id.val) {
-        case 'PS00990-A04-S21120152': // West
-          setWest((v) => values)
-          break
-        case 'PS00990-A04-S22010020': // East
-          setEast((v) => values)
-          break
-        case 'PS00990-A04-S22010101': // North
-          setNorth((v) => values)
-          break
-      }
+    const topic = 'sso'
+    const subscribe = mqtt.subscribe({
+      topic,
+      cb: (payload) => {
+        const values = {
+          voltage: parseFloat(payload.upv.val),
+          temperature: parseFloat(payload.temp.val),
+          power: parseFloat(payload.upv.val) * parseFloat(payload.ipv.val),
+        }
+
+        switch (payload.id.val) {
+          case 'PS00990-A04-S21120152': // West
+            setWest((v) => values)
+            break
+          case 'PS00990-A04-S22010020': // East
+            setEast((v) => values)
+            break
+          case 'PS00990-A04-S22010101': // North
+            setNorth((v) => values)
+            break
+        }
+      },
     })
+    dispatch(subscribe)
 
     return () => {
-      unSub()
+      dispatch(mqtt.unsubscribe({ topic }))
     }
-  }, [])
+  }, [dispatch, mqttStatus])
 
   return (
     <div className="panel">
@@ -316,8 +327,6 @@ export const StringsTotal = (props: { height: number }) => {
         }),
       )
     }
-
-    console.log(data)
 
     return data
   }, [ysterday, values])
