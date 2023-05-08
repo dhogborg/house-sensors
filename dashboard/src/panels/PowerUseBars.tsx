@@ -1,22 +1,22 @@
 import { useEffect, useMemo } from 'react'
-import { batch, useSelector } from 'react-redux'
-
-import {
-  refresh,
-  theme,
-  BUY_TRANSMISSION_FEE_CENTS,
-  BUY_ADDED_TAX_CENTS,
-  SELL_REDUCED_TAX_CENTS,
-  SELL_GRID_BENEFIT_CENTS,
-} from 'src/lib/config'
-import { formatNumber } from 'src/lib/helpers'
-import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
-
-import * as influxdb from 'src/lib/slices/influxdb'
-import * as tibber from 'src/lib/slices/tibber'
-import * as configSlice from 'src/lib/slices/config'
+import { batch } from 'react-redux'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
+
+import {
+  BUY_ADDED_TAX_CENTS,
+  BUY_TRANSMISSION_FEE_CENTS,
+  SELL_GRID_BENEFIT_CENTS,
+  SELL_REDUCED_TAX_CENTS,
+  refresh,
+  theme,
+} from 'src/lib/config'
+import { formatNumber } from 'src/lib/helpers'
+import { useDispatch, useSelector } from 'src/lib/store'
+
+import * as configSlice from 'src/lib/slices/config'
+import * as influxdb from 'src/lib/slices/influxdb'
+import * as tibber from 'src/lib/slices/tibber'
 
 export const ColorSolar = '#fee1a7'
 export const ColorSell = '#30BF78'
@@ -36,14 +36,14 @@ type MasterNode = {
 }
 
 export default function PowerUseBars(props: { height: number }) {
-  const dispatch = useAppDispatch()
+  const dispatch = useDispatch()
   const includeTax = useSelector(configSlice.selector).includeTaxes
 
-  const loadValues = useAppSelector(influxdb.selectSeriesValues('totalLoad', 0))
-  const pvValues = useAppSelector(influxdb.selectSeriesValues('totalPv', 0))
-  const gridValues = useAppSelector(influxdb.selectSeriesValues('totalGrid', 0))
+  const loadValues = useSelector(influxdb.selectSeriesValues('totalLoad', 0))
+  const pvValues = useSelector(influxdb.selectSeriesValues('totalPv', 0))
+  const gridValues = useSelector(influxdb.selectSeriesValues('totalGrid', 0))
 
-  const priceState = useAppSelector(tibber.selector)
+  const priceState = useSelector(tibber.selector)
 
   useEffect(() => {
     const tzOffset = '-60m' //`${new Date().getTimezoneOffset()}m`

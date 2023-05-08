@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react'
 
+import { Gauge, GaugeConfig } from '@ant-design/charts'
+import { Col, Modal, Row } from 'antd'
+
 import { deepEqual, formatNumber } from 'src/lib/helpers'
-import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
 import * as mqtt from 'src/lib/mqtt'
+import { useDispatch, useSelector } from 'src/lib/store'
 
 import * as influxdb from 'src/lib/slices/influxdb'
 
-import { Gauge, GaugeConfig } from '@ant-design/charts'
-import { MultiGauge } from './components/MultiGuage'
-import { Col, Modal, Row } from 'antd'
-
 import { StringByDirection, StringGauges, StringsTotal } from './Strings'
+import { MultiGauge } from './components/MultiGuage'
 
 export const ColorSolar = '#fee1a7'
 export const ColorSell = '#30BF78'
@@ -130,8 +130,8 @@ function formatPower(power: number): string {
 }
 
 export function PowerCombined(props: { height: number }) {
-  const dispatch = useAppDispatch()
-  const query: influxdb.State['query'][string] = useAppSelector(
+  const dispatch = useDispatch()
+  const query: influxdb.State['query'][string] = useSelector(
     influxdb.selectQuery('power'),
     deepEqual,
   )
@@ -211,8 +211,8 @@ export function PowerCombined(props: { height: number }) {
 }
 
 export function PowerHeatPump(props: { height: number }) {
-  const dispatch = useAppDispatch()
-  const query = useAppSelector(influxdb.selectQuery('heatpump'), deepEqual)
+  const dispatch = useDispatch()
+  const query = useSelector(influxdb.selectQuery('heatpump'), deepEqual)
 
   useEffect(() => {
     const load = () => {

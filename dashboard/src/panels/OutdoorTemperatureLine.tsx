@@ -1,23 +1,23 @@
 import { useEffect } from 'react'
 
+import { Area, AreaConfig } from '@ant-design/charts'
+
 import { theme } from 'src/lib/config'
 import { deepEqual, formatNumber } from 'src/lib/helpers'
-import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
+import { useDispatch, useSelector } from 'src/lib/store'
 
 import * as influxdb from 'src/lib/slices/influxdb'
 import * as yr from 'src/lib/slices/yr'
 
-import { Area, AreaConfig } from '@ant-design/charts'
-
 const SECONDS = 1000
 
 export default function OutdoorTemperature(props: { height: number }) {
-  const dispatch = useAppDispatch()
-  const query: influxdb.State['query'][string] = useAppSelector(
+  const dispatch = useDispatch()
+  const query: influxdb.State['query'][string] = useSelector(
     influxdb.selectQuery('outdoor'),
     deepEqual,
   )
-  const weatherState = useAppSelector(yr.selector)
+  const weatherState = useSelector(yr.selector)
 
   useEffect(() => {
     const load = () => {

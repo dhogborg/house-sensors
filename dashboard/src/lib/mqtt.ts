@@ -1,5 +1,6 @@
-import { SerializedError } from '@reduxjs/toolkit'
 import mqtt from 'precompiled-mqtt'
+
+import { SerializedError } from '@reduxjs/toolkit'
 
 let client: any
 let connecting: boolean

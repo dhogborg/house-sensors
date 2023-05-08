@@ -1,17 +1,19 @@
-import { Col, Row } from 'antd'
-import * as mqtt from 'src/lib/mqtt'
 import { useEffect, useState } from 'react'
-import { useSelector } from 'react-redux'
+
+import { Col, Row } from 'antd'
+
 import { formatNumber } from 'src/lib/helpers'
-import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
+import * as mqtt from 'src/lib/mqtt'
+import { useDispatch, useSelector } from 'src/lib/store'
+
+import * as config from 'src/lib/slices/config'
 import * as influxdb from 'src/lib/slices/influxdb'
 import * as tibber from 'src/lib/slices/tibber'
 
 import * as lib from './Summary.lib'
-import * as config from '../../lib/slices/config'
 
 export default function Summary(props: { height: number }) {
-  const dispatch = useAppDispatch()
+  const dispatch = useDispatch()
   const includeTax = useSelector(config.selector).includeTaxes
   const gridMinutes = useSelector(influxdb.selectSeriesValues('gridMinutes', 0))
   const pvPeakValues = useSelector(influxdb.selectSeriesValues('pvPeak', 0))
@@ -29,7 +31,7 @@ export default function Summary(props: { height: number }) {
     influxdb.selectSeriesValues('heatpumpTotal', 0),
   )
 
-  const todayPrice = useAppSelector(tibber.selector).today
+  const todayPrice = useSelector(tibber.selector).today
   const [altView, setAltView] = useState(false)
 
   useEffect(() => {

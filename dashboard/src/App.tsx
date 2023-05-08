@@ -1,15 +1,15 @@
-import './App.less'
-
-import { Col, Row } from 'antd'
 import { useEffect } from 'react'
 
+import { Col, Row } from 'antd'
+
+import './App.less'
 import IndoorTemperature from './panels/IndoorTemperatureLine'
 import OutdoorTemperature from './panels/OutdoorTemperatureLine'
 import { PowerLive } from './panels/PowerGauges'
 import PowerUseBars from './panels/PowerUseBars'
-import PriceBars from './panels/Tibber'
+import { StringByDirection, StringGauges, StringsTotal } from './panels/Strings'
 import Summary from './panels/Summary'
-import { StringsTotal, StringByDirection, StringGauges } from './panels/Strings'
+import PriceBars from './panels/Tibber'
 
 function App() {
   const gutter = 0

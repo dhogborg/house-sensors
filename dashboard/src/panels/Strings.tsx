@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import * as mqtt from 'src/lib/mqtt'
+import { Line, LineConfig } from '@ant-design/charts'
+import { Col, Row } from 'antd'
 
 import { refresh, theme } from 'src/lib/config'
 import { formatNumber } from 'src/lib/helpers'
-import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
+import * as mqtt from 'src/lib/mqtt'
+import { useDispatch, useSelector } from 'src/lib/store'
 
 import * as influxdb from 'src/lib/slices/influxdb'
 
-import { Line, LineConfig } from '@ant-design/charts'
 import { MultiGauge } from './components/MultiGuage'
-import { Col, Row } from 'antd'
 
 interface Sso {
   voltage: number
@@ -125,8 +125,8 @@ function SsoGauge(props: {
 }
 
 export const StringByDirection = (props: { height: number }) => {
-  const dispatch = useAppDispatch()
-  const strings = useAppSelector(influxdb.selectQuery('strings'))
+  const dispatch = useDispatch()
+  const strings = useSelector(influxdb.selectQuery('strings'))
 
   useEffect(() => {
     const load = () => {
@@ -241,11 +241,9 @@ export const StringByDirection = (props: { height: number }) => {
 }
 
 export const StringsTotal = (props: { height: number }) => {
-  const dispatch = useAppDispatch()
-  const values = useAppSelector(
-    influxdb.selectSeriesValues('strings_combined', 0),
-  )
-  const ysterday = useAppSelector(
+  const dispatch = useDispatch()
+  const values = useSelector(influxdb.selectSeriesValues('strings_combined', 0))
+  const ysterday = useSelector(
     influxdb.selectSeriesValues('strings_ysterday_combined', 0),
   )
   useEffect(() => {

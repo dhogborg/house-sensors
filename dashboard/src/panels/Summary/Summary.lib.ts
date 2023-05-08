@@ -1,5 +1,5 @@
-import { RootState } from '../../lib/store'
 import * as taxes from 'src/lib/config'
+import { RootState } from 'src/lib/store'
 
 const buyTaxesPerkWh =
   (taxes.BUY_ADDED_TAX_CENTS + taxes.BUY_TRANSMISSION_FEE_CENTS) / 100

@@ -14,5 +14,15 @@
   "singleQuote": true,
   "tabWidth": 2,
   "trailingComma": "all",
-  "useTabs": false
+  "useTabs": false,
+  "importOrder": [
+    "^react|redux",
+    "^(|@)ant",
+    "src/lib/(?!slices)",
+    "lib/slices",
+    "^src/",
+    "^[./]"
+  ],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true
 }

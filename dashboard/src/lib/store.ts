@@ -1,16 +1,18 @@
-import { configureStore, ThunkAction, Action } from '@reduxjs/toolkit'
-
+import { Action, ThunkAction, configureStore } from '@reduxjs/toolkit'
+import * as reactRedux from 'react-redux'
 import { combineReducers } from 'redux'
 
 import config from './slices/config'
+import influxdb from './slices/influxdb'
+import mqtt from './slices/influxdb'
 import tibber from './slices/tibber'
 import yr from './slices/yr'
-import influxdb from './slices/influxdb'
 
 export const store = configureStore({
   reducer: combineReducers({
     config,
     tibber,
+    mqtt,
     yr,
     influxdb,
   }),
@@ -25,3 +27,8 @@ export type AppThunk<ReturnType = void> = ThunkAction<
   unknown,
   Action<string>
 >
+
+// Use throughout your app instead of `useDispatch` and `useSelector` from 'react-redux'
+export const useDispatch = () => reactRedux.useDispatch<AppDispatch>()
+export const useSelector: reactRedux.TypedUseSelectorHook<RootState> =
+  reactRedux.useSelector

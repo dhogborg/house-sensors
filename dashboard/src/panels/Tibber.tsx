@@ -2,17 +2,18 @@ import { useEffect, useState } from 'react'
 
 import { Column, ColumnConfig } from '@ant-design/charts'
 
-import * as tibber from 'src/lib/slices/tibber'
-import * as appConfig from 'src/lib/slices/config'
 import {
-  BUY_TRANSMISSION_FEE_CENTS,
   BUY_ADDED_TAX_CENTS,
-  SELL_REDUCED_TAX_CENTS,
+  BUY_TRANSMISSION_FEE_CENTS,
   SELL_GRID_BENEFIT_CENTS,
+  SELL_REDUCED_TAX_CENTS,
 } from 'src/lib/config'
 import { formatNumber } from 'src/lib/helpers'
-import { useAppDispatch, useAppSelector } from 'src/lib/hooks'
+import { useDispatch, useSelector } from 'src/lib/store'
+
+import * as appConfig from 'src/lib/slices/config'
 import * as influxdb from 'src/lib/slices/influxdb'
+import * as tibber from 'src/lib/slices/tibber'
 
 interface priceNode {
   startsAt?: string
@@ -21,11 +22,11 @@ interface priceNode {
 }
 
 export default function PriceBars(props: { height: number }) {
-  const dispatch = useAppDispatch()
-  const tomorrow = useAppSelector(tibber.tomorrow)
-  const today = useAppSelector(tibber.today)
-  const includeFeesAndTax = useAppSelector(appConfig.selector).includeTaxes
-  const pvValues = useAppSelector(influxdb.selectSeriesValues('totalPv', 0))
+  const dispatch = useDispatch()
+  const tomorrow = useSelector(tibber.tomorrow)
+  const today = useSelector(tibber.today)
+  const includeFeesAndTax = useSelector(appConfig.selector).includeTaxes
+  const pvValues = useSelector(influxdb.selectSeriesValues('totalPv', 0))
   const [solarHours, setSolarHours] = useState<{ [key: string]: boolean }>({})
 
   const [currentPrice, setCurrentPrice] = useState<{
