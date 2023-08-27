@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
+import { createDispatchHook } from 'react-redux'
 
-import { Col, Row } from 'antd'
+import { Col, Row, message } from 'antd'
 
 import * as mqtt from './lib/slices/mqtt'
 
@@ -29,6 +30,14 @@ function App() {
       dispatch(mqtt.connect())
     }
   }, [dispatch, mqttState.status])
+
+  useEffect(() => {
+    switch (mqttState.status) {
+      case 'connected':
+        message.success('Connected!', 2)
+        break
+    }
+  }, [mqttState.status])
 
   return (
     <div className="App">

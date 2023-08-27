@@ -7,10 +7,13 @@ export * from './mqtt.thunks'
 export interface State {
   status: 'idle' | 'connecting' | 'connected'
   error?: SerializedError
+
+  heartbeat: number
 }
 
 const initialState: State = {
   status: 'idle',
+  heartbeat: 0,
 }
 
 export const slice = createSlice({
@@ -21,10 +24,13 @@ export const slice = createSlice({
     setStatus: (state, action: PayloadAction<State['status']>) => {
       state.status = action.payload
     },
+    tickHeartbeat: (state) => {
+      state.heartbeat = new Date().getTime()
+    },
   },
 })
 
 export const selector = (state: RootState) => state.mqtt
 
 export default slice.reducer
-export const { setStatus } = slice.actions
+export const { setStatus, tickHeartbeat } = slice.actions

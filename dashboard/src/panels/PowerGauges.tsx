@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Gauge, GaugeConfig } from '@ant-design/charts'
 import { Col, Modal, Row } from 'antd'
@@ -59,7 +59,33 @@ export function PowerLive(props: { height: number }) {
     }
   }, [dispatch, mqttStatus])
 
-  const max = 9000
+  const max = 11_000
+
+  const modal = useMemo(() => {
+    return (
+      <Modal
+        title="Solar Strings"
+        centered
+        visible={modalOpen}
+        onOk={() => setModalOpen(false)}
+        okText="Close"
+        onCancel={() => setModalOpen(false)}
+        width={850}
+      >
+        <Row>
+          <Col xs={24}>
+            <StringGauges height={175} />
+          </Col>
+          <Col xs={24} md={12}>
+            <StringsTotal height={250} />
+          </Col>
+          <Col xs={24} md={12}>
+            <StringByDirection height={250} />
+          </Col>
+        </Row>
+      </Modal>
+    )
+  }, [modalOpen])
 
   const elements = []
   if (solarPower > consumePower) {
@@ -108,27 +134,7 @@ export function PowerLive(props: { height: number }) {
         }}
         title="Nuvarande förbrk."
       />
-      <Modal
-        title="Solar Strings"
-        centered
-        visible={modalOpen}
-        onOk={() => setModalOpen(false)}
-        okText="Close"
-        onCancel={() => setModalOpen(false)}
-        width={850}
-      >
-        <Row>
-          <Col xs={24}>
-            <StringGauges height={175} />
-          </Col>
-          <Col xs={24} md={12}>
-            <StringsTotal height={250} />
-          </Col>
-          <Col xs={24} md={12}>
-            <StringByDirection height={250} />
-          </Col>
-        </Row>
-      </Modal>
+      {modal}
     </div>
   )
 }

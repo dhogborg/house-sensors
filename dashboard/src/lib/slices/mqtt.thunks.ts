@@ -3,7 +3,7 @@ import mqtt from 'precompiled-mqtt'
 import { SerializedError, createAsyncThunk } from '@reduxjs/toolkit'
 
 import { RootState } from '../store'
-import { setStatus } from './mqtt'
+import { setStatus, tickHeartbeat } from './mqtt'
 
 interface MQTTClient {
   connected: boolean
@@ -18,7 +18,6 @@ export const connect = createAsyncThunk<void, void, { state: RootState }>(
   'mqtt/connect',
   async (args, { getState, dispatch }) => {
     const connect = () => {
-      dispatch(setStatus('connecting'))
       const c: MQTTClient = mqtt.connect('mqtt://192.168.116.232:8083')
       c.on('connect', (conack) => {
         console.log('mqtt client connected: ')
@@ -46,6 +45,7 @@ export const connect = createAsyncThunk<void, void, { state: RootState }>(
     const status = getState().mqtt.status
 
     if (!client || (client && status === 'idle')) {
+      dispatch(setStatus('connecting'))
       client = connect()
     }
   },
@@ -54,7 +54,7 @@ export const connect = createAsyncThunk<void, void, { state: RootState }>(
 export const subscribe = createAsyncThunk<
   void,
   { topic: string; cb: (payload: any) => void }
->('mqtt/subscribe', async (args) => {
+>('mqtt/subscribe', async (args, { dispatch }) => {
   const { cb, topic } = args
   const sub = () => {
     client.subscribe(topic, function (err: SerializedError) {
@@ -69,6 +69,7 @@ export const subscribe = createAsyncThunk<
         const payload = JSON.parse(message.toString())
         cb(payload)
       }
+      // dispatch(tickHeartbeat())
     })
   }
 
@@ -87,5 +88,21 @@ export const unsubscribe = createAsyncThunk<void, { topic: string }>(
     client.unsubscribe(args.topic, {}, () => {
       console.log('unsubscribed ', args.topic)
     })
+  },
+)
+
+export const monitor = createAsyncThunk<void, void, { state: RootState }>(
+  'mqtt/monitor',
+  async (arg, { getState, dispatch }) => {
+    setInterval(() => {
+      const { status, heartbeat } = getState().mqtt
+      const now = new Date().getTime()
+
+      if (now - heartbeat > 5000) {
+        if (status === 'connected') {
+          dispatch(connect())
+        }
+      }
+    }, 10 * 1000)
   },
 )

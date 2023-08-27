@@ -153,7 +153,7 @@ export const StringByDirection = (props: { height: number }) => {
           query: `SELECT mean("power") AS "mean_power"
             FROM "energy"."autogen"."sso"
             WHERE time > '${from.toISOString()}' AND time < '${to.toISOString()}'
-            GROUP BY time(5m), "direction" FILL(null)`,
+            GROUP BY time(2m), "direction" FILL(null)`,
         }),
       )
     }
@@ -197,6 +197,10 @@ export const StringByDirection = (props: { height: number }) => {
     height: props.height,
     smooth: true,
     legend: false,
+
+    lineStyle: {
+      lineWidth: 1,
+    },
 
     color: (datum) => {
       switch (datum.category) {
@@ -271,7 +275,7 @@ export const StringsTotal = (props: { height: number }) => {
           query: `SELECT mean("power") AS "mean_power" 
               FROM "energy"."autogen"."pv" 
               WHERE time > '${from.toISOString()}' AND time < '${to.toISOString()}'
-              GROUP BY time(5m) FILL(null)`,
+              GROUP BY time(2m) FILL(null)`,
         }),
       )
 
@@ -285,7 +289,7 @@ export const StringsTotal = (props: { height: number }) => {
           query: `SELECT mean("power") AS "mean_power" 
               FROM "energy"."autogen"."pv" 
               WHERE time > '${ysterdayStart.toISOString()}' AND time < '${ysterdayEnd.toISOString()}'
-              GROUP BY time(5m) FILL(null)`,
+              GROUP BY time(2m) FILL(null)`,
         }),
       )
     }
@@ -341,8 +345,11 @@ export const StringsTotal = (props: { height: number }) => {
     height: props.height,
     smooth: true,
     legend: false,
+    lineStyle: {
+      lineWidth: 1,
+    },
 
-    color: ['#999', '#fee1a7'],
+    color: ['rgba(255,255,255,0.2)', '#fee1a7'],
     yAxis: {
       min: 0,
     },
