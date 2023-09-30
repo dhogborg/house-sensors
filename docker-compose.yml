@@ -18,13 +18,13 @@ services:
     ports:
       - 1880:1880
 
-  proxy:
-    image: dhogborg/influx-cors-proxy:latest
-    restart: always
-    ports:
-      - 9086:9086
-    environment:
-      - TARGET=http://influxdb:8086
+  # proxy:
+  #   image: dhogborg/influx-cors-proxy:latest
+  #   restart: always
+  #   ports:
+  #     - 9086:9086
+  #   environment:
+  #     - TARGET=http://influxdb:8086
 
   # verisure-mqtt:
   #   image: mountaindude/verisure-mqtt:latest
@@ -55,9 +55,13 @@ services:
     restart: always
     depends_on:
       - influxdb
-      - proxy
     ports:
-      - 80:80
+      - 80:8080
+    environment:
+      - MQTT_URL=mqtt://mqtt:1883
+      - INFLUX_URL=http://influxdb:8086
+    env_file:
+      - .env
 
   influxdb:
     image: influxdb:2.1

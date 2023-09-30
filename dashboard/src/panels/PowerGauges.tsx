@@ -23,9 +23,12 @@ export function PowerLive(props: { height: number }) {
   const [gridPower, setGridPower] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
 
-  const mqttStatus = useSelector(mqtt.selector).status
+  const mqttStatus = useSelector(mqtt.selector).topics['ehub']
   useEffect(() => {
-    if (mqttStatus !== 'connected') {
+    if (
+      mqttStatus?.status === 'connected' ||
+      mqttStatus?.status === 'connecting'
+    ) {
       return
     }
 
@@ -53,10 +56,6 @@ export function PowerLive(props: { height: number }) {
       },
     })
     dispatch(subscribe)
-
-    return () => {
-      dispatch(mqtt.unsubscribe({ topic }))
-    }
   }, [dispatch, mqttStatus])
 
   const max = 11_000

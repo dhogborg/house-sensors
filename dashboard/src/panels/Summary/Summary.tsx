@@ -111,12 +111,16 @@ export default function Summary(props: { height: number }) {
     }
   }, [dispatch])
 
-  const mqttStatus = useSelector(mqtt.selector).status
+  const mqttStatus = useSelector(mqtt.selector).topics['tapo/p115/heatpump']
   const [heatPower, setHeatPower] = useState<number | undefined>(undefined)
   useEffect(() => {
-    if (mqttStatus !== 'connected') {
+    if (
+      mqttStatus?.status === 'connected' ||
+      mqttStatus?.status === 'connecting'
+    ) {
       return
     }
+
     const topic = 'tapo/p115/heatpump'
     dispatch(
       mqtt.subscribe({
@@ -127,10 +131,6 @@ export default function Summary(props: { height: number }) {
         },
       }),
     )
-
-    return () => {
-      dispatch(mqtt.unsubscribe({ topic }))
-    }
   }, [dispatch, mqttStatus])
 
   const totalConsumedWh = lib.TotalConsumedWh(loadMinutes)

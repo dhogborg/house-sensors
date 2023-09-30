@@ -3,9 +3,6 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { handledFetch } from '../http'
 import { RootState } from '../store'
 
-const INFLUXDB_ENDPOINT = import.meta.env.VITE_INFLUXDB_URL
-const INFLUXDB_TOKEN = import.meta.env.VITE_INFLUXDB_TOKEN
-
 export interface State {
   query: {
     // the id provided as argument
@@ -226,18 +223,14 @@ export const slice = createSlice({
 type FluxResponse = string
 
 async function fluxQuery(args: { query: string }): Promise<FluxResponse> {
-  const response = await handledFetch(
-    `${INFLUXDB_ENDPOINT}/api/v2/query?org=house`,
-    {
-      method: 'POST',
-      headers: {
-        Accept: 'application/csv',
-        'Content-type': 'application/vnd.flux',
-        Authorization: 'bearer ' + INFLUXDB_TOKEN,
-      },
-      body: args.query,
+  const response = await handledFetch(`/api/influxdb/api/v2/query?org=house`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/csv',
+      'Content-type': 'application/vnd.flux',
     },
-  )
+    body: args.query,
+  })
 
   return response.text()
 }
@@ -261,11 +254,7 @@ async function query(args: { query: string; db: string }): Promise<Response> {
     `q=${encodeURIComponent(args.query)}`,
   ].join('&')
 
-  const response = await handledFetch(`${INFLUXDB_ENDPOINT}/query?${request}`, {
-    headers: {
-      Authorization: 'Token ' + INFLUXDB_TOKEN,
-    },
-  })
+  const response = await handledFetch(`/api/influxdb/query?${request}`)
   return await response.json()
 }
 

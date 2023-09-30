@@ -34,9 +34,12 @@ export const StringGauges = (props: { height: number }) => {
   const [west, setWest] = useState<Sso>(empty)
   const [north, setNorth] = useState<Sso>(empty)
 
-  const mqttStatus = useSelector(mqtt.selector).status
+  const mqttStatus = useSelector(mqtt.selector).topics['sso']
   useEffect(() => {
-    if (mqttStatus !== 'connected') {
+    if (
+      mqttStatus?.status === 'connected' ||
+      mqttStatus?.status === 'connecting'
+    ) {
       return
     }
 
@@ -64,10 +67,6 @@ export const StringGauges = (props: { height: number }) => {
       },
     })
     dispatch(subscribe)
-
-    return () => {
-      dispatch(mqtt.unsubscribe({ topic }))
-    }
   }, [dispatch, mqttStatus])
 
   return (

@@ -10,3 +10,8 @@ backup.env
 restore
 backup.env
 _cred.json
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

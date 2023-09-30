@@ -15,8 +15,8 @@ import Summary from './panels/Summary'
 import PriceBars from './panels/Tibber'
 
 function App() {
-  const dispatch = useDispatch()
-  const mqttState = useSelector(mqtt.selector)
+  // const dispatch = useDispatch()
+  // const mqttState = useSelector(mqtt.selector)
 
   const gutter = 0
   useEffect(() => {
@@ -25,19 +25,19 @@ function App() {
     }, 1000 * 60 * 120)
   }, [])
 
-  useEffect(() => {
-    if (mqttState.status === 'idle') {
-      dispatch(mqtt.connect())
-    }
-  }, [dispatch, mqttState.status])
+  // useEffect(() => {
+  //   if (mqttState.status === 'idle') {
+  //     dispatch(mqtt.connect())
+  //   }
+  // }, [dispatch, mqttState.status])
 
-  useEffect(() => {
-    switch (mqttState.status) {
-      case 'connected':
-        message.success('Connected!', 2)
-        break
-    }
-  }, [mqttState.status])
+  // useEffect(() => {
+  //   switch (mqttState.status) {
+  //     case 'connected':
+  //       message.success('Connected!', 2)
+  //       break
+  //   }
+  // }, [mqttState.status])
 
   return (
     <div className="App">
