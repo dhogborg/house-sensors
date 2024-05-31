@@ -181,7 +181,11 @@ export const MultiGauge = function (props: MultiGaugeProps) {
       ref={containerRef}
       onClick={() => props.onClick?.()}
       className="multi-gauge-container"
-      style={{ height: props.height, width: props.height }}
+      style={{
+        height: props.height,
+        width: props.height,
+        display: 'inline-block',
+      }}
     >
       <canvas ref={canvasRef}></canvas>
     </div>

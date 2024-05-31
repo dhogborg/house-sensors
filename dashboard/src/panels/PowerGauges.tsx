@@ -9,9 +9,10 @@ import { useDispatch, useSelector } from 'src/lib/store'
 import * as influxdb from 'src/lib/slices/influxdb'
 import * as mqtt from 'src/lib/slices/mqtt'
 
+import EnergyClock from './EnergyClock'
 import { StringByDirection, StringGauges, StringsTotal } from './Strings'
 import BatteryBar from './components/BatteryBar'
-import { MultiGauge, MultiGaugeProps } from './components/MultiGuage'
+import { MultiGauge, MultiGaugeProps } from './components/MultiGauge'
 
 export const ColorSolar = '#fee1a7'
 export const ColorSell = '#30BF78'
@@ -47,10 +48,10 @@ export function PowerLive(props: { height: number }) {
       topic: 'sungrow/stats',
       cb: (payload: any) => {
         setBatteryData({
-          charge: payload.batteryCharge * 1000,
-          discharge: payload.batteryDischarge * 1000,
+          charge: payload?.batteryCharge ?? 0 * 1000,
+          discharge: payload?.batteryDischarge ?? 0 * 1000,
         })
-        setSoc(payload.batteryLevel)
+        setSoc(payload?.batteryLevel ?? 0)
       },
     })
     dispatch(subscribeSungrow)
@@ -113,7 +114,7 @@ export function PowerLive(props: { height: number }) {
     )
   }, [modalOpen])
 
-  const elements: MultiGaugeProps['elements'] = []
+  // const elements: MultiGaugeProps['elements'] = []
 
   const batteryPower = batteryData.discharge - batteryData.charge
   const generation = inverterPower + batteryPower * 0.95
@@ -134,52 +135,52 @@ export function PowerLive(props: { height: number }) {
     estimLoad = loadPower
   }
 
-  if (gridPower < 0) {
-    elements.push({
-      percentage: ((estimLoad + Math.abs(gridPower)) / max) * 100,
-      color: ColorSell,
-      z: 2,
-    })
-    elements.push({
-      percentage: (estimLoad / max) * 100,
-      color: ColorSolar,
-      z: 10,
-    })
-  } else {
-    elements.push({
-      percentage: (estimLoad / max) * 100,
-      color: ColorBuy,
-      z: 2,
-    })
-    elements.push({
-      percentage: (solarPower / max) * 100,
-      color: ColorSolar,
-      z: 10,
-    })
-  }
+  // if (gridPower < 0) {
+  //   elements.push({
+  //     percentage: ((estimLoad + Math.abs(gridPower)) / max) * 100,
+  //     color: ColorSell,
+  //     z: 2,
+  //   })
+  //   elements.push({
+  //     percentage: (estimLoad / max) * 100,
+  //     color: ColorSolar,
+  //     z: 10,
+  //   })
+  // } else {
+  //   elements.push({
+  //     percentage: (estimLoad / max) * 100,
+  //     color: ColorBuy,
+  //     z: 2,
+  //   })
+  //   elements.push({
+  //     percentage: (solarPower / max) * 100,
+  //     color: ColorSolar,
+  //     z: 10,
+  //   })
+  // }
 
-  if (batteryData.discharge > 0) {
-    elements.push({
-      percentage: (batteryData.discharge / max) * 100,
-      color: ColorDischarge,
-      z: 100,
-      width: 10,
-    })
-  }
+  // if (batteryData.discharge > 0) {
+  //   elements.push({
+  //     percentage: (batteryData.discharge / max) * 100,
+  //     color: ColorDischarge,
+  //     z: 100,
+  //     width: 10,
+  //   })
+  // }
 
-  if (batteryData.charge > 0) {
-    elements.push({
-      percentage: (Math.abs(batteryData.charge) / max) * 100,
-      color: ColorCharge,
-      z: 100,
-      width: 10,
-    })
-  }
+  // if (batteryData.charge > 0) {
+  //   elements.push({
+  //     percentage: (Math.abs(batteryData.charge) / max) * 100,
+  //     color: ColorCharge,
+  //     z: 100,
+  //     width: 10,
+  //   })
+  // }
 
   return (
     <div className="panel">
       <div className="power-gauge-component">
-        <MultiGauge
+        {/* <MultiGauge
           height={props.height}
           elements={elements}
           onClick={() => setModalOpen(true)}
@@ -196,6 +197,14 @@ export function PowerLive(props: { height: number }) {
             return '🔋 ' + formatPower(batteryPower)
           }}
           title="Nuvarande förbrk."
+        /> */}
+        <EnergyClock
+          height={props.height}
+          onClick={() => setModalOpen(true)}
+          pv={solarPower}
+          usage={estimLoad}
+          grid={gridPower}
+          battery={batteryPower}
         />
         <BatteryBar
           height={props.height * 0.8}

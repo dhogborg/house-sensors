@@ -43,7 +43,7 @@ export default function PriceBars(props: { height: number }) {
     setTimeout(() => {
       dispatch(tibber.get())
     }, minRemain + 1 * 60 * 1000) // add a minute extra so we don't race to the new data
-  }, [dispatch])
+  }, [])
 
   useEffect(() => {
     const hours = {}

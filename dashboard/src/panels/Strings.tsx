@@ -10,7 +10,7 @@ import { useDispatch, useSelector } from 'src/lib/store'
 import * as influxdb from 'src/lib/slices/influxdb'
 import * as mqtt from 'src/lib/slices/mqtt'
 
-import { MultiGauge } from './components/MultiGuage'
+import { MultiGauge } from './components/MultiGauge'
 
 interface Sso {
   voltage: number
