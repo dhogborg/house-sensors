@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sync"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/go-chi/chi"
@@ -11,11 +12,14 @@ import (
 )
 
 type MqqWsHandler struct {
+	topicCache   map[string]string
+	topicCacheMu sync.Mutex
 }
 
 func NewMQTTHandler() *MqqWsHandler {
-
-	return &MqqWsHandler{}
+	return &MqqWsHandler{
+		topicCache: map[string]string{},
+	}
 }
 
 func (h *MqqWsHandler) HandleRoutes(r chi.Router) {

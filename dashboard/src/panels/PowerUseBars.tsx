@@ -22,6 +22,8 @@ export const ColorSolar = '#fee1a7'
 export const ColorSell = '#30BF78'
 export const ColorBuy = '#f85e46'
 export const ColorProduction = ColorSell + '33'
+export const ColorDischarge = '#3699b5'
+export const ColorCharge = '#7EAD76'
 
 const Grain = '1m'
 
@@ -33,6 +35,8 @@ type MasterNode = {
   export: number
   selfUsage: number
   solar: number
+  charge: number
+  discharge: number
 }
 
 export default function PowerUseBars(props: { height: number }) {
@@ -42,6 +46,10 @@ export default function PowerUseBars(props: { height: number }) {
   const loadValues = useSelector(influxdb.selectSeriesValues('totalLoad', 0))
   const pvValues = useSelector(influxdb.selectSeriesValues('totalPv', 0))
   const gridValues = useSelector(influxdb.selectSeriesValues('totalGrid', 0))
+  const chargeValue = useSelector(influxdb.selectSeriesValues('charge', 0))
+  const dischargeValue = useSelector(
+    influxdb.selectSeriesValues('discharge', 0),
+  )
 
   const priceState = useSelector(tibber.selector)
 
@@ -71,14 +79,34 @@ export default function PowerUseBars(props: { height: number }) {
         )
         dispatch(
           influxdb.getQuery({
-            id: 'totalPv',
+            id: 'charge',
             db: 'energy',
-            query: `SELECT mean("power") AS "mean_power" 
+            query: `SELECT mean("charge") AS "mean_charge"
+                FROM "energy"."autogen"."storage" 
+                WHERE time > now() - 23h
+                GROUP BY time(${Grain}) FILL(null)`,
+          }),
+        ),
+          dispatch(
+            influxdb.getQuery({
+              id: 'discharge',
+              db: 'energy',
+              query: `SELECT mean("discharge") AS "mean_discharge" 
+                FROM "energy"."autogen"."storage" 
+                WHERE time > now() - 23h
+                GROUP BY time(${Grain}) FILL(null)`,
+            }),
+          ),
+          dispatch(
+            influxdb.getQuery({
+              id: 'totalPv',
+              db: 'energy',
+              query: `SELECT mean("power") AS "mean_power" 
             FROM "energy"."autogen"."pv" 
             WHERE time > now() - 23h 
             GROUP BY time(${Grain}) FILL(null)`,
-          }),
-        )
+            }),
+          )
       })
     }
 
@@ -100,6 +128,8 @@ export default function PowerUseBars(props: { height: number }) {
     const minutes = loadValues.map((loadNode, i) => {
       const pvNode = pvValues[i]
       const gridNode = gridValues[i]
+      const chargeNode = chargeValue[i]
+      const dischargeNode = dischargeValue[i]
 
       return {
         time: new Date(loadNode.time),
@@ -107,6 +137,8 @@ export default function PowerUseBars(props: { height: number }) {
         grid: (gridNode?.value ?? 0) / 1000 / 60,
         load: (loadNode?.value ?? 0) / 1000 / 60,
         solar: (pvNode?.value ?? 0) / 1000 / 60,
+        charge: (chargeNode?.value ?? 0) / 1000 / 60,
+        discharge: (dischargeNode?.value ?? 0) / 1000 / 60,
       }
     })
 
@@ -124,19 +156,37 @@ export default function PowerUseBars(props: { height: number }) {
           export: 0,
           selfUsage: 0,
           solar: 0,
+          charge: 0,
+          discharge: 0,
         }
         hours.push(curr)
       }
 
-      const selfUse = node.grid > 0 ? node.solar : node.load
+      let selfUseSolar = 0
+      if (node.solar > 0) {
+        selfUseSolar = node.grid > 0 ? node.solar : node.load
+      }
       const gridExport = node.grid < 0 ? node.grid : 0
       const gridImport = node.grid > 0 ? node.grid : 0
 
+      let netImport = gridImport - node.charge
+      if (netImport < 0) netImport = 0
+
+      let netCharge = node.charge - selfUseSolar
+      if (netCharge < 0) netCharge = 0
+
+      let netDischarge = node.discharge
+      if (gridExport > 0) {
+        netDischarge = netDischarge - gridExport
+      }
+
       curr.load += node.load
       curr.export += gridExport
-      curr.import += gridImport
-      curr.selfUsage += selfUse
+      curr.import += netImport
+      curr.selfUsage += selfUseSolar
       curr.solar += node.solar
+      curr.charge += netCharge
+      curr.discharge += netDischarge
     })
 
     return hours
@@ -149,6 +199,16 @@ export default function PowerUseBars(props: { height: number }) {
           time: node.time.toString(),
           category: 'Import',
           value: node.import,
+        },
+        {
+          time: node.time.toString(),
+          category: 'Till Batteri',
+          value: node.charge,
+        },
+        {
+          time: node.time.toString(),
+          category: 'Från Batteri',
+          value: node.discharge,
         },
         {
           time: node.time.toString(),
@@ -267,6 +327,10 @@ export default function PowerUseBars(props: { height: number }) {
           return ColorSell
         case 'Producerat':
           return ColorProduction
+        case 'Till Batteri':
+          return ColorCharge
+        case 'Från Batteri':
+          return ColorDischarge
       }
     },
     theme,

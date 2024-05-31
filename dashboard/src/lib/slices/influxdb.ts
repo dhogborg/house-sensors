@@ -132,9 +132,9 @@ export const getQuery = createAsyncThunk<
 
           values: series.values.map((d) => {
             return {
-              time: d[0] as string,
               category,
-              value: d[1] as number,
+              time: d[0],
+              value: d[1],
             }
           }),
         }

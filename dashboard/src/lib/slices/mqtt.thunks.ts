@@ -14,7 +14,6 @@ export const subscribe = createAsyncThunk<
 
   const prot = location.protocol === 'https:' ? 'wss:' : 'ws:'
   const url = `${prot}//${location.host}/api/mqtt?token=${PROXY_TOKEN}`
-  console.log(url)
 
   const ws = new WebSocket(url)
   sockets[topic] = ws

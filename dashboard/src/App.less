@@ -20,6 +20,7 @@ body {
   & > div {
     width: 100%;
   }
+  color: #4a8fc3;
 }
 
 .panel {
@@ -57,9 +58,22 @@ dd {
   font-size: 13px;
 }
 
-.multi-gauge-container canvas {
+.power-gauge-component {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+.battery-bar-container {
+  padding-bottom: 50px;
+}
+
+.multi-gauge-container canvas,
+.battery-bar-container canvas {
   display: block;
   margin: 0px auto;
+  height: 100%;
 }
 
 .ant-modal-header {

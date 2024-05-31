@@ -10,18 +10,29 @@ import * as influxdb from 'src/lib/slices/influxdb'
 import * as mqtt from 'src/lib/slices/mqtt'
 
 import { StringByDirection, StringGauges, StringsTotal } from './Strings'
-import { MultiGauge } from './components/MultiGuage'
+import BatteryBar from './components/BatteryBar'
+import { MultiGauge, MultiGaugeProps } from './components/MultiGuage'
 
 export const ColorSolar = '#fee1a7'
 export const ColorSell = '#30BF78'
 export const ColorBuy = '#f85e46'
 
+export const ColorDischarge = '#3699b5'
+export const ColorCharge = '#3699b5'
+
 export function PowerLive(props: { height: number }) {
   const dispatch = useDispatch()
   const [solarPower, setSolarPower] = useState(0)
-  const [consumePower, setConsumePower] = useState(0)
   const [gridPower, setGridPower] = useState(0)
+  const [inverterPower, setInverterPower] = useState(0)
+  const [loadPower, setLoadPower] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
+  const [soc, setSoc] = useState(0)
+
+  const [batteryData, setBatteryData] = useState({
+    charge: 0,
+    discharge: 0,
+  })
 
   const mqttStatus = useSelector(mqtt.selector).topics['ehub']
   useEffect(() => {
@@ -32,30 +43,46 @@ export function PowerLive(props: { height: number }) {
       return
     }
 
+    const subscribeSungrow = mqtt.subscribe({
+      topic: 'sungrow/stats',
+      cb: (payload: any) => {
+        setBatteryData({
+          charge: payload.batteryCharge * 1000,
+          discharge: payload.batteryDischarge * 1000,
+        })
+        setSoc(payload.batteryLevel)
+      },
+    })
+    dispatch(subscribeSungrow)
+
     const topic = 'ehub'
-    const subscribe = mqtt.subscribe({
+    const subscribeEhub = mqtt.subscribe({
       topic,
       cb: (payload: any) => {
-        setSolarPower(() => {
-          return parseFloat(payload.ppv.val)
+        setSolarPower(parseFloat(payload.ppv.val))
+        setInverterPower(() => {
+          const p =
+            parseFloat(payload.pinv['L1']) +
+            parseFloat(payload.pinv['L2']) +
+            parseFloat(payload.pinv['L3'])
+          return p * -1
         })
-        setConsumePower(() => {
+
+        setLoadPower(() => {
           return (
             parseFloat(payload.pload['L1']) +
             parseFloat(payload.pload['L2']) +
             parseFloat(payload.pload['L3'])
           )
         })
-        setGridPower(() => {
-          return (
-            parseFloat(payload.pext['L1']) +
+        setGridPower(
+          parseFloat(payload.pext['L1']) +
             parseFloat(payload.pext['L2']) +
-            parseFloat(payload.pext['L3'])
-          )
-        })
+            parseFloat(payload.pext['L3']),
+        )
       },
     })
-    dispatch(subscribe)
+    dispatch(subscribeEhub)
   }, [dispatch, mqttStatus])
 
   const max = 11_000
@@ -86,53 +113,96 @@ export function PowerLive(props: { height: number }) {
     )
   }, [modalOpen])
 
-  const elements = []
-  if (solarPower > consumePower) {
-    // push a selling colored bar and a solar generating bar
+  const elements: MultiGaugeProps['elements'] = []
+
+  const batteryPower = batteryData.discharge - batteryData.charge
+  const generation = inverterPower + batteryPower * 0.95
+
+  let estimLoad = gridPower + generation
+  const loadQ = estimLoad / loadPower
+
+  // console.log({
+  //   loadQ: Math.abs(loadQ - 1).toFixed(3),
+  //   estimLoad: Math.floor(estimLoad),
+  //   loadPower: Math.floor(loadPower),
+  //   gridPower: Math.floor(gridPower),
+  //   batteryPower: Math.floor(batteryPower),
+  // })
+
+  // 10% difference
+  if (Math.abs(loadQ - 1) < 0.5 || Math.abs(batteryPower) < 1) {
+    estimLoad = loadPower
+  }
+
+  if (gridPower < 0) {
     elements.push({
-      percentage: (solarPower / max) * 100,
+      percentage: ((estimLoad + Math.abs(gridPower)) / max) * 100,
       color: ColorSell,
       z: 2,
     })
     elements.push({
-      percentage: (consumePower / max) * 100,
+      percentage: (estimLoad / max) * 100,
       color: ColorSolar,
-      z: 1,
+      z: 10,
     })
   } else {
-    // push a buy-bar, a consume bar and a solar bar
     elements.push({
-      percentage: (consumePower / max) * 100,
+      percentage: (estimLoad / max) * 100,
       color: ColorBuy,
       z: 2,
     })
     elements.push({
       percentage: (solarPower / max) * 100,
       color: ColorSolar,
-      z: 1,
+      z: 10,
+    })
+  }
+
+  if (batteryData.discharge > 0) {
+    elements.push({
+      percentage: (batteryData.discharge / max) * 100,
+      color: ColorDischarge,
+      z: 100,
+      width: 10,
+    })
+  }
+
+  if (batteryData.charge > 0) {
+    elements.push({
+      percentage: (Math.abs(batteryData.charge) / max) * 100,
+      color: ColorCharge,
+      z: 100,
+      width: 10,
     })
   }
 
   return (
     <div className="panel">
-      <MultiGauge
-        height={props.height}
-        elements={elements}
-        onClick={() => setModalOpen(true)}
-        consume={() => {
-          return formatPower(consumePower)
-        }}
-        solar={() => {
-          return '☀️ ' + formatPower(solarPower)
-        }}
-        grid={() => {
-          if (solarPower === 0) {
-            return ''
-          }
-          return '⚡️ ' + formatPower(gridPower)
-        }}
-        title="Nuvarande förbrk."
-      />
+      <div className="power-gauge-component">
+        <MultiGauge
+          height={props.height}
+          elements={elements}
+          onClick={() => setModalOpen(true)}
+          consume={() => {
+            return formatPower(estimLoad)
+          }}
+          solar={() => {
+            return '☀️ ' + formatPower(solarPower)
+          }}
+          grid={() => {
+            return '⚡️ ' + formatPower(gridPower)
+          }}
+          battery={() => {
+            return '🔋 ' + formatPower(batteryPower)
+          }}
+          title="Nuvarande förbrk."
+        />
+        <BatteryBar
+          height={props.height * 0.8}
+          color="#4a8fc3"
+          percentage={soc}
+        />
+      </div>
       {modal}
     </div>
   )
@@ -140,7 +210,7 @@ export function PowerLive(props: { height: number }) {
 
 function formatPower(power: number): string {
   if (power > 999 || power < -999) {
-    return formatNumber(power / 999, ' kW', { precision: 2 })
+    return formatNumber(power / 1000, ' kW', { precision: 2 })
   }
   return formatNumber(power, ' W', { precision: 0 })
 }
@@ -173,7 +243,7 @@ export function PowerCombined(props: { height: number }) {
     }
   }, [dispatch])
 
-  const power = query.series?.[0]?.values?.[0]?.value || 0
+  const power = query.series?.[0]?.values?.[0]?.value ?? 0
   const max = 9000
   const percent = power / max
 

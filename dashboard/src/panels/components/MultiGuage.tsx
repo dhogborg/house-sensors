@@ -14,6 +14,7 @@ export interface MultiGaugeProps {
     color?: string
     zIndex?: number
     width?: number
+    z?: number
   }[]
 
   title?: string
@@ -26,6 +27,7 @@ export interface MultiGaugeProps {
   consume?: () => string
   solar?: () => string
   grid?: () => string
+  battery?: () => string
 
   onClick?: () => void
 }
@@ -111,7 +113,7 @@ export const MultiGauge = function (props: MultiGaugeProps) {
 
     drawArc(props.fillColor || '#e5e5e5', props.arcWidth ?? defaultWidth, 100)
 
-    props.elements.forEach((element, i) => {
+    props.elements.sort(zsort).forEach((element, i) => {
       const defaultColor = defaultColors[i % defaultColors.length]
       drawArc(
         element.color || defaultColor,
@@ -127,7 +129,7 @@ export const MultiGauge = function (props: MultiGaugeProps) {
       context.fillText(props.title, canvas.width * 0.5, canvas.height * 0.825)
     }
 
-    const offsetTop = -0.05
+    const offsetTop = -0.08
 
     if (props.solar) {
       context.font = props.auxStyle ?? '30px sans-serif'
@@ -151,6 +153,17 @@ export const MultiGauge = function (props: MultiGaugeProps) {
       )
     }
 
+    if (props.battery) {
+      context.font = props.auxStyle ?? '30px sans-serif'
+      context.fillStyle = '#ffffff'
+      context.textAlign = 'center'
+      context.fillText(
+        props.battery(),
+        canvas.width * 0.5,
+        canvas.height * (0.68 + offsetTop),
+      )
+    }
+
     if (props.grid) {
       context.font = props.auxStyle ?? '30px sans-serif'
       context.fillStyle = '#ffffff'
@@ -158,7 +171,7 @@ export const MultiGauge = function (props: MultiGaugeProps) {
       context.fillText(
         props.grid(),
         canvas.width * 0.5,
-        canvas.height * (0.68 + offsetTop),
+        canvas.height * (0.78 + offsetTop),
       )
     }
   }, [canvas, props, containerSize])
@@ -168,9 +181,13 @@ export const MultiGauge = function (props: MultiGaugeProps) {
       ref={containerRef}
       onClick={() => props.onClick?.()}
       className="multi-gauge-container"
-      style={{ height: props.height, width: '100%' }}
+      style={{ height: props.height, width: props.height }}
     >
       <canvas ref={canvasRef}></canvas>
     </div>
   )
+}
+
+function zsort(a, b) {
+  return a.z - b.z
 }
