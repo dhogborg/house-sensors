@@ -111,6 +111,29 @@ describe('<EnergyClock />', () => {
           battery={1000}
           title="grid neutral +batt"
         />
+        <hr />
+        <EnergyClock
+          {...props}
+          usage={500}
+          grid={-5000}
+          battery={-5500}
+          title="Large export"
+        />
+        <EnergyClock
+          {...props}
+          pv={3500}
+          usage={4000}
+          battery={-5500}
+          grid={-5000}
+          title="Large everything"
+        />
+        <EnergyClock
+          {...props}
+          usage={2000}
+          grid={5500}
+          battery={3500}
+          title="Large import"
+        />
       </div>,
     )
   })

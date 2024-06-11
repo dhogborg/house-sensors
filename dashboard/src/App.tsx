@@ -7,37 +7,20 @@ import * as mqtt from './lib/slices/mqtt'
 
 import './App.less'
 import { useDispatch, useSelector } from './lib/store'
+import PriceBars from './panels/EnergyPrice'
 import IndoorTemperature from './panels/IndoorTemperatureLine'
 import OutdoorTemperature from './panels/OutdoorTemperatureLine'
 import { PowerLive } from './panels/PowerGauges'
 import PowerUseBars from './panels/PowerUseBars'
 import Summary from './panels/Summary'
-import PriceBars from './panels/Tibber'
 
 function App() {
-  // const dispatch = useDispatch()
-  // const mqttState = useSelector(mqtt.selector)
-
   const gutter = 0
   useEffect(() => {
     setTimeout(() => {
       window.location.reload()
     }, 1000 * 60 * 120)
   }, [])
-
-  // useEffect(() => {
-  //   if (mqttState.status === 'idle') {
-  //     dispatch(mqtt.connect())
-  //   }
-  // }, [dispatch, mqttState.status])
-
-  // useEffect(() => {
-  //   switch (mqttState.status) {
-  //     case 'connected':
-  //       message.success('Connected!', 2)
-  //       break
-  //   }
-  // }, [mqttState.status])
 
   return (
     <div className="App">

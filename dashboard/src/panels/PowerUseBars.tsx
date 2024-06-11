@@ -24,6 +24,7 @@ export const ColorBuy = '#f85e46'
 export const ColorProduction = ColorSell + '33'
 export const ColorDischarge = '#3699b5'
 export const ColorCharge = '#7EAD76'
+export const ColorBattery = '#3699b5'
 
 const Grain = '1m'
 
@@ -328,9 +329,9 @@ export default function PowerUseBars(props: { height: number }) {
         case 'Producerat':
           return ColorProduction
         case 'Till Batteri':
-          return ColorCharge
+          return ColorBattery
         case 'Från Batteri':
-          return ColorDischarge
+          return ColorBattery
       }
     },
     theme,

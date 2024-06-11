@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Column, ColumnConfig } from '@ant-design/charts'
 
 import {
+  BUY_ADDED_CHARGES,
   BUY_ADDED_TAX_CENTS,
   BUY_TRANSMISSION_FEE_CENTS,
   SELL_GRID_BENEFIT_CENTS,
@@ -12,36 +13,35 @@ import { formatNumber } from 'src/lib/helpers'
 import { useDispatch, useSelector } from 'src/lib/store'
 
 import * as appConfig from 'src/lib/slices/config'
+import * as elpriset from 'src/lib/slices/elpriset'
 import * as influxdb from 'src/lib/slices/influxdb'
-import * as tibber from 'src/lib/slices/tibber'
 
 interface priceNode {
-  startsAt?: string
+  timeStart?: string
   category: string
   price: number
 }
 
 export default function PriceBars(props: { height: number }) {
   const dispatch = useDispatch()
-  const tomorrow = useSelector(tibber.tomorrow)
-  const today = useSelector(tibber.today)
+  const tomorrow = useSelector(elpriset.tomorrow)
+  const today = useSelector(elpriset.today)
   const includeFeesAndTax = useSelector(appConfig.selector).includeTaxes
   const pvValues = useSelector(influxdb.selectSeriesValues('totalPv', 0))
   const [solarHours, setSolarHours] = useState<{ [key: string]: boolean }>({})
 
   const [currentPrice, setCurrentPrice] = useState<{
-    startsAt?: string
-    currentSek: number
-    currentTax: number
-  }>({ currentSek: 0, currentTax: 0 })
+    timeStart?: string
+    price: number
+  }>({ price: 0 })
 
   useEffect(() => {
-    dispatch(tibber.get())
+    dispatch(elpriset.get())
 
-    // fetch tibber again at the top of the hour
+    // fetch again at the top of the hour
     const minRemain = 60 - new Date().getMinutes()
     setTimeout(() => {
-      dispatch(tibber.get())
+      dispatch(elpriset.get())
     }, minRemain + 1 * 60 * 1000) // add a minute extra so we don't race to the new data
   }, [])
 
@@ -57,13 +57,12 @@ export default function PriceBars(props: { height: number }) {
   // UPdate the current price once every 10 seconds, if changed
   useEffect(() => {
     const update = () => {
-      const newPrice = tibber.now(today.concat(tomorrow))
+      const newPrice = elpriset.now(today.concat(tomorrow))
       setCurrentPrice((curr) => {
-        if (newPrice && curr.startsAt !== newPrice.startsAt) {
+        if (newPrice && curr.timeStart !== newPrice.timeStart) {
           return {
-            startsAt: newPrice.startsAt,
-            currentSek: newPrice.total,
-            currentTax: newPrice.tax,
+            timeStart: newPrice.timeStart,
+            price: newPrice.price,
           }
         }
         return curr
@@ -78,20 +77,18 @@ export default function PriceBars(props: { height: number }) {
     return () => {
       clearInterval(r)
     }
-  }, [today, tomorrow, setCurrentPrice])
+  }, [today, tomorrow])
 
   const buyFeesAndTaxes = includeFeesAndTax
-    ? BUY_TRANSMISSION_FEE_CENTS + BUY_ADDED_TAX_CENTS
-    : 0
+    ? BUY_TRANSMISSION_FEE_CENTS + BUY_ADDED_TAX_CENTS + BUY_ADDED_CHARGES
+    : BUY_ADDED_CHARGES
   const sellFeesAndTaxes = includeFeesAndTax
     ? SELL_REDUCED_TAX_CENTS + SELL_GRID_BENEFIT_CENTS
     : 0
 
-  const { currentSek, currentTax } = currentPrice
-  const currentBuy = Math.round(100 * currentSek + buyFeesAndTaxes)
-  const currentSell = Math.round(
-    100 * (currentSek - currentTax) + sellFeesAndTaxes,
-  )
+  const { price } = currentPrice
+  const currentBuy = Math.round(100 * price * 1.25 + buyFeesAndTaxes)
+  const currentSell = Math.round(100 * price + sellFeesAndTaxes)
 
   const toggleFeesAndTaxes = (chart: unknown, event: { type: string }) => {
     switch (event.type) {
@@ -108,7 +105,7 @@ export default function PriceBars(props: { height: number }) {
       return {
         ...node,
         category: 'buy_price',
-        price: Math.round(node.total * 100 + buyFeesAndTaxes),
+        price: Math.round(node.price * 1.25 * 100 + buyFeesAndTaxes),
       }
     }),
   )
@@ -118,7 +115,7 @@ export default function PriceBars(props: { height: number }) {
       return {
         ...node,
         category: 'buy_price',
-        price: Math.round(node.total * 100 + buyFeesAndTaxes),
+        price: Math.round(node.price * 1.25 * 100 + buyFeesAndTaxes),
       }
     }),
   )
@@ -126,8 +123,8 @@ export default function PriceBars(props: { height: number }) {
   priceData = priceData.concat(
     today
       .map((node) => {
-        const d = new Date(node.startsAt)
-        let price = Math.round((node.total - node.tax) * 100 + sellFeesAndTaxes)
+        const d = new Date(node.timeStart)
+        let price = Math.round(node.price * 100 + sellFeesAndTaxes)
         if (!solarHours[d.getHours()]) {
           price = 0
         }
@@ -143,8 +140,8 @@ export default function PriceBars(props: { height: number }) {
   priceData = priceData.concat(
     tomorrow
       .map((node) => {
-        const d = new Date(node.startsAt)
-        let price = Math.round((node.total - node.tax) * 100 + sellFeesAndTaxes)
+        const d = new Date(node.timeStart)
+        let price = Math.round(node.price * 100 + sellFeesAndTaxes)
         if (!solarHours[d.getHours()]) {
           price = 0
         }
@@ -188,7 +185,7 @@ export default function PriceBars(props: { height: number }) {
 
   priceData.push({
     category: 'current_buy',
-    startsAt: currentPrice.startsAt,
+    timeStart: currentPrice.timeStart,
     price: currentBuy,
   })
 
@@ -308,7 +305,7 @@ export default function PriceBars(props: { height: number }) {
     data: priceData,
     isStack: false,
 
-    xField: 'startsAt',
+    xField: 'timeStart',
     yField: 'price',
     padding: 'auto',
 
@@ -340,7 +337,7 @@ export default function PriceBars(props: { height: number }) {
 
     tooltip: {
       title: (title, datum) => {
-        const d = new Date(datum.startsAt)
+        const d = new Date(datum.timeStart)
         return d.toLocaleDateString('sv-se') + ' ' + d.toLocaleTimeString()
       },
       formatter: (datum) => {

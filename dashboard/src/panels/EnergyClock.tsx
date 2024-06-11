@@ -22,15 +22,37 @@ export const ColorSolar = '#fee1a7'
 export const ColorSell = '#30BF78'
 export const ColorBuy = '#f85e46'
 
-// export const ColorDischarge = '#3699b5'
-// export const ColorCharge = '#3699b5'
-
 export const ColorBattery = '#3699b5'
 
 export default function EnergyClock(props: Props) {
   let elements: MultiGaugeProps['elements'] = []
 
+  const charge = Math.max(0, props.battery)
+  const discharge = Math.abs(Math.min(0, props.battery))
+  const solarLoad = Math.min(props.pv, props.usage)
+
   const percent = (n: number): number => (n / max) * 100
+
+  if (discharge > 0) {
+    const battLoad = Math.min(discharge, props.usage - solarLoad)
+    elements.push({
+      percentage: percent(battLoad),
+      color: ColorBattery,
+      z: 1,
+    })
+  }
+
+  if (charge > 0) {
+    const remainSolar = props.pv - solarLoad
+    const solarBatt = Math.min(remainSolar, charge)
+    if (solarBatt > 0) {
+      elements.push({
+        percentage: percent(solarBatt),
+        color: ColorBattery,
+        z: 1,
+      })
+    }
+  }
 
   elements.push({
     percentage: percent(Math.min(props.pv, props.usage)),
@@ -39,16 +61,12 @@ export default function EnergyClock(props: Props) {
   })
 
   elements.push({
-    percentage: percent(Math.abs(props.battery)),
-    color: ColorBattery,
-    z: 1,
-  })
-
-  elements.push({
     percentage: percent(Math.abs(props.grid)),
     color: props.grid < 0 ? ColorSell : ColorBuy,
     z: 0,
   })
+
+  elements = elements.sort((a, b) => b.z - a.z)
 
   // Stack the elements
   let base = 0
@@ -57,12 +75,10 @@ export default function EnergyClock(props: Props) {
     elem.percentage = base
   }
 
-  //   const charge = Math.max(0, props.battery)
-  //   const discharge = Math.abs(Math.min(0, props.battery))
-  //   const sanity = props.usage + charge - (props.grid + props.pv + discharge)
-  //   if (sanity !== 0) {
-  //     elements = []
-  //   }
+  // const sanity = props.usage + charge - (props.grid + props.pv + discharge)
+  // if (sanity !== 0) {
+  //   elements = []
+  // }
   return (
     <MultiGauge
       height={props.height}
@@ -81,8 +97,8 @@ export default function EnergyClock(props: Props) {
         if (props.battery === 0) {
           return '🔋 0 W'
         }
-        return `${props.battery < 0 ? '<-' : '->'} 🔋${formatPower(
-          Math.abs(props.battery),
+        return `${props.battery > 0 ? '⚡️' : ''}🔋 ${formatPower(
+          props.battery,
         )}`
       }}
       title={props.title ?? 'Nuvarande förbrk.'}

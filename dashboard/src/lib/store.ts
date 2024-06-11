@@ -3,6 +3,7 @@ import * as reactRedux from 'react-redux'
 import { combineReducers } from 'redux'
 
 import config from './slices/config'
+import elpriset from './slices/elpriset'
 import influxdb from './slices/influxdb'
 import mqtt from './slices/mqtt'
 import tibber from './slices/tibber'
@@ -12,6 +13,7 @@ export const store = configureStore({
   reducer: combineReducers({
     config,
     tibber,
+    elpriset,
     mqtt,
     yr,
     influxdb,

@@ -29,6 +29,7 @@ export function PowerLive(props: { height: number }) {
   const [loadPower, setLoadPower] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [soc, setSoc] = useState(0)
+  const [freq, setFreq] = useState(50.0)
 
   const [batteryData, setBatteryData] = useState({
     charge: 0,
@@ -44,17 +45,21 @@ export function PowerLive(props: { height: number }) {
       return
     }
 
-    const subscribeSungrow = mqtt.subscribe({
-      topic: 'sungrow/stats',
+    const subscribeSungrowPower = mqtt.subscribe({
+      topic: 'sungrow/power',
       cb: (payload: any) => {
-        setBatteryData({
-          charge: payload?.batteryCharge ?? 0 * 1000,
-          discharge: payload?.batteryDischarge ?? 0 * 1000,
-        })
-        setSoc(payload?.batteryLevel ?? 0)
+        setBatteryData(payload)
       },
     })
-    dispatch(subscribeSungrow)
+    dispatch(subscribeSungrowPower)
+
+    const subscribeSungrowStats = mqtt.subscribe({
+      topic: 'sungrow/stats',
+      cb: (payload: any) => {
+        setSoc(payload.soc ?? 0)
+      },
+    })
+    dispatch(subscribeSungrowStats)
 
     const topic = 'ehub'
     const subscribeEhub = mqtt.subscribe({
@@ -81,12 +86,18 @@ export function PowerLive(props: { height: number }) {
             parseFloat(payload.pext['L2']) +
             parseFloat(payload.pext['L3']),
         )
+        setFreq(() => {
+          const f = payload?.gridfreq?.val
+          if (!isNaN(f)) {
+            return parseFloat(payload.gridfreq.val)
+          } else {
+            return 50
+          }
+        })
       },
     })
     dispatch(subscribeEhub)
   }, [dispatch, mqttStatus])
-
-  const max = 11_000
 
   const modal = useMemo(() => {
     return (
@@ -114,95 +125,40 @@ export function PowerLive(props: { height: number }) {
     )
   }, [modalOpen])
 
-  // const elements: MultiGaugeProps['elements'] = []
-
-  const batteryPower = batteryData.discharge - batteryData.charge
+  const batteryPower = batteryData.charge - batteryData.discharge
   const generation = inverterPower + batteryPower * 0.95
 
   let estimLoad = gridPower + generation
   const loadQ = estimLoad / loadPower
 
-  // console.log({
-  //   loadQ: Math.abs(loadQ - 1).toFixed(3),
-  //   estimLoad: Math.floor(estimLoad),
-  //   loadPower: Math.floor(loadPower),
-  //   gridPower: Math.floor(gridPower),
-  //   batteryPower: Math.floor(batteryPower),
-  // })
-
   // 10% difference
-  if (Math.abs(loadQ - 1) < 0.5 || Math.abs(batteryPower) < 1) {
+  if (Math.abs(loadQ - 1) < 0.5 || Math.abs(batteryPower) > 1) {
     estimLoad = loadPower
   }
-
-  // if (gridPower < 0) {
-  //   elements.push({
-  //     percentage: ((estimLoad + Math.abs(gridPower)) / max) * 100,
-  //     color: ColorSell,
-  //     z: 2,
-  //   })
-  //   elements.push({
-  //     percentage: (estimLoad / max) * 100,
-  //     color: ColorSolar,
-  //     z: 10,
-  //   })
-  // } else {
-  //   elements.push({
-  //     percentage: (estimLoad / max) * 100,
-  //     color: ColorBuy,
-  //     z: 2,
-  //   })
-  //   elements.push({
-  //     percentage: (solarPower / max) * 100,
-  //     color: ColorSolar,
-  //     z: 10,
-  //   })
-  // }
-
-  // if (batteryData.discharge > 0) {
-  //   elements.push({
-  //     percentage: (batteryData.discharge / max) * 100,
-  //     color: ColorDischarge,
-  //     z: 100,
-  //     width: 10,
-  //   })
-  // }
-
-  // if (batteryData.charge > 0) {
-  //   elements.push({
-  //     percentage: (Math.abs(batteryData.charge) / max) * 100,
-  //     color: ColorCharge,
-  //     z: 100,
-  //     width: 10,
-  //   })
-  // }
 
   return (
     <div className="panel">
       <div className="power-gauge-component">
-        {/* <MultiGauge
-          height={props.height}
-          elements={elements}
-          onClick={() => setModalOpen(true)}
-          consume={() => {
-            return formatPower(estimLoad)
+        <div
+          className="sine"
+          style={{
+            position: 'absolute',
+            left: '10px',
+            top: '5px',
           }}
-          solar={() => {
-            return '☀️ ' + formatPower(solarPower)
-          }}
-          grid={() => {
-            return '⚡️ ' + formatPower(gridPower)
-          }}
-          battery={() => {
-            return '🔋 ' + formatPower(batteryPower)
-          }}
-          title="Nuvarande förbrk."
-        /> */}
+        >
+          {freq > 50.1 || freq < 49.9 ? (
+            <span>⚠️</span>
+          ) : (
+            <span style={{ fontSize: 22 }}>∿</span>
+          )}{' '}
+          {freq.toFixed(2)}
+        </div>
         <EnergyClock
           height={props.height}
           onClick={() => setModalOpen(true)}
           pv={solarPower}
-          usage={estimLoad}
+          usage={Math.max(0, estimLoad)}
           grid={gridPower}
           battery={batteryPower}
         />
@@ -215,13 +171,6 @@ export function PowerLive(props: { height: number }) {
       {modal}
     </div>
   )
-}
-
-function formatPower(power: number): string {
-  if (power > 999 || power < -999) {
-    return formatNumber(power / 1000, ' kW', { precision: 2 })
-  }
-  return formatNumber(power, ' W', { precision: 0 })
 }
 
 export function PowerCombined(props: { height: number }) {
