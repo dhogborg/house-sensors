@@ -34,9 +34,8 @@ export default function EnergyClock(props: Props) {
   const percent = (n: number): number => (n / max) * 100
 
   if (discharge > 0) {
-    const battLoad = Math.min(discharge, props.usage - solarLoad)
     elements.push({
-      percentage: percent(battLoad),
+      percentage: percent(Math.abs(discharge)),
       color: ColorBattery,
       z: 1,
     })
@@ -98,7 +97,7 @@ export default function EnergyClock(props: Props) {
           return '🔋 0 W'
         }
         return `${props.battery > 0 ? '⚡️' : ''}🔋 ${formatPower(
-          props.battery,
+          Math.abs(props.battery),
         )}`
       }}
       title={props.title ?? 'Nuvarande förbrk.'}

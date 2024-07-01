@@ -24,9 +24,10 @@ export const ColorBuy = '#f85e46'
 export const ColorProduction = ColorSell + '33'
 export const ColorDischarge = '#3699b5'
 export const ColorCharge = '#7EAD76'
-export const ColorBattery = '#3699b5'
+export const ColorBatteryCharge = '#3699b5'
+export const ColorBatteryDischarge = '#fee1a7'
 
-const Grain = '1m'
+const Grain = '1h'
 
 type MasterNode = {
   time: Date
@@ -44,11 +45,12 @@ export default function PowerUseBars(props: { height: number }) {
   const dispatch = useDispatch()
   const includeTax = useSelector(configSlice.selector).includeTaxes
 
-  const loadValues = useSelector(influxdb.selectSeriesValues('totalLoad', 0))
+  // const loadValues = useSelector(influxdb.selectSeriesValues('totalLoad', 0))
   const pvValues = useSelector(influxdb.selectSeriesValues('totalPv', 0))
-  const gridValues = useSelector(influxdb.selectSeriesValues('totalGrid', 0))
-  const chargeValue = useSelector(influxdb.selectSeriesValues('charge', 0))
-  const dischargeValue = useSelector(
+  const gridImport = useSelector(influxdb.selectSeriesValues('gridImport', 0))
+  const gridExport = useSelector(influxdb.selectSeriesValues('gridExport', 0))
+  const chargeValues = useSelector(influxdb.selectSeriesValues('charge', 0))
+  const dischargeValues = useSelector(
     influxdb.selectSeriesValues('discharge', 0),
   )
 
@@ -60,24 +62,34 @@ export default function PowerUseBars(props: { height: number }) {
       batch(() => {
         dispatch(
           influxdb.getQuery({
-            id: 'totalGrid',
+            id: 'gridImport',
             db: 'energy',
             query: `SELECT mean("power") AS "mean_power" 
             FROM "energy"."autogen"."grid" 
-            WHERE time > now() - 23h AND "phase"='combined' 
-            GROUP BY time(${Grain}) FILL(null)`,
+            WHERE time > now() - 23h AND "phase"='combined' AND power > 0
+            GROUP BY time(${Grain}) FILL(0)`,
           }),
         )
         dispatch(
           influxdb.getQuery({
-            id: 'totalLoad',
+            id: 'gridExport',
             db: 'energy',
             query: `SELECT mean("power") AS "mean_power" 
-            FROM "energy"."autogen"."load" 
-            WHERE time > now() - 23h AND "phase"='combined' 
-            GROUP BY time(${Grain}) FILL(null)`,
+            FROM "energy"."autogen"."grid" 
+            WHERE time > now() - 23h AND "phase"='combined' AND power < 0
+            GROUP BY time(${Grain}) FILL(0)`,
           }),
         )
+        // dispatch(
+        //   influxdb.getQuery({
+        //     id: 'totalLoad',
+        //     db: 'energy',
+        //     query: `SELECT mean("power") AS "mean_power"
+        //     FROM "energy"."autogen"."load"
+        //     WHERE time > now() - 23h AND "phase"='combined'
+        //     GROUP BY time(${Grain}) FILL(null)`,
+        //   }),
+        // )
         dispatch(
           influxdb.getQuery({
             id: 'charge',
@@ -121,116 +133,115 @@ export default function PowerUseBars(props: { height: number }) {
     }
   }, [dispatch])
 
-  if (!loadValues || !pvValues || !gridValues) {
+  if (!pvValues || !gridImport || !gridExport) {
     return null
   }
 
-  const masterInput = useMemo(() => {
-    const minutes = loadValues.map((loadNode, i) => {
+  const hours = useMemo(() => {
+    const hours = gridImport.map((loadNode, i) => {
       const pvNode = pvValues[i]
-      const gridNode = gridValues[i]
-      const chargeNode = chargeValue[i]
-      const dischargeNode = dischargeValue[i]
+      const importNode = gridImport[i]
+      const exportNode = gridExport[i]
+      const chargeNode = chargeValues[i]
+      const dischargeNode = dischargeValues[i]
 
       return {
         time: new Date(loadNode.time),
 
-        grid: (gridNode?.value ?? 0) / 1000 / 60,
-        load: (loadNode?.value ?? 0) / 1000 / 60,
-        solar: (pvNode?.value ?? 0) / 1000 / 60,
-        charge: (chargeNode?.value ?? 0) / 1000 / 60,
-        discharge: (dischargeNode?.value ?? 0) / 1000 / 60,
+        import: importNode?.value / 1000 ?? 0,
+        export: exportNode?.value / 1000 ?? 0,
+        load: loadNode?.value / 1000 ?? 0,
+        solar: pvNode?.value / 1000 ?? 0,
+        charge: chargeNode?.value / 1000 ?? 0,
+        discharge: dischargeNode?.value / 1000 ?? 0,
       }
     })
 
     // reduce to hours
-    const hours: MasterNode[] = []
-    minutes.forEach((node) => {
-      const t = node.time
-      let curr: MasterNode = hours[hours.length - 1]
-      if (!curr || curr.time.getHours() !== t.getHours()) {
-        curr = {
-          time: t,
+    //   const hours: MasterNode[] = []
+    //   minutes.forEach((node) => {
+    //     const t = node.time
+    //     let curr: MasterNode = hours[hours.length - 1]
+    //     if (!curr || curr.time.getHours() !== t.getHours()) {
+    //       curr = {
+    //         time: t,
 
-          load: 0,
-          import: 0,
-          export: 0,
-          selfUsage: 0,
-          solar: 0,
-          charge: 0,
-          discharge: 0,
-        }
-        hours.push(curr)
-      }
+    //         load: 0,
+    //         import: 0,
+    //         export: 0,
+    //         selfUsage: 0,
+    //         solar: 0,
+    //         charge: 0,
+    //         discharge: 0,
+    //       }
+    //       hours.push(curr)
+    //     }
 
-      let selfUseSolar = 0
-      if (node.solar > 0) {
-        selfUseSolar = node.grid > 0 ? node.solar : node.load
-      }
-      const gridExport = node.grid < 0 ? node.grid : 0
-      const gridImport = node.grid > 0 ? node.grid : 0
+    //     let selfUseSolar = 0
+    //     if (node.solar > 0) {
+    //       // selfUseSolar = node.grid > 0 ? node.solar : node.load
+    //       selfUseSolar = node.solar - node.export - node.charge
+    //     }
 
-      let netImport = gridImport - node.charge
-      if (netImport < 0) netImport = 0
+    //     // let netImport = gridImport - node.charge
+    //     // if (netImport < 0) netImport = 0
 
-      let netCharge = node.charge - selfUseSolar
-      if (netCharge < 0) netCharge = 0
+    //     // let netCharge = node.charge - selfUseSolar
+    //     // if (netCharge < 0) netCharge = 0
 
-      let netDischarge = node.discharge
-      if (gridExport > 0) {
-        netDischarge = netDischarge - gridExport
-      }
+    //     // let netDischarge = node.discharge
+    //     // if (gridExport > 0) {
+    //     //   netDischarge = netDischarge - gridExport
+    //     // }
 
-      curr.load += node.load
-      curr.export += gridExport
-      curr.import += netImport
-      curr.selfUsage += selfUseSolar
-      curr.solar += node.solar
-      curr.charge += netCharge
-      curr.discharge += netDischarge
-    })
+    //     curr.load += node.load
+    //     curr.export += node.export
+    //     curr.import += node.import * -1
+    //     curr.selfUsage += selfUseSolar
+    //     // curr.solar += node.solar
+    //     curr.charge += node.charge
+    //     curr.discharge += node.discharge
+    //   })
 
     return hours
-  }, [loadValues, gridValues, pvValues])
+  }, [gridExport, gridImport, pvValues, chargeValues, dischargeValues])
 
-  const data: influxdb.Series['values'] = masterInput.reduce(
-    (prev, node, i) => {
-      const nodes = [
-        {
-          time: node.time.toString(),
-          category: 'Import',
-          value: node.import,
-        },
-        {
-          time: node.time.toString(),
-          category: 'Till Batteri',
-          value: node.charge,
-        },
-        {
-          time: node.time.toString(),
-          category: 'Från Batteri',
-          value: node.discharge,
-        },
-        {
-          time: node.time.toString(),
-          category: 'Egenanvändning',
-          value: node.selfUsage,
-        },
-        {
-          time: node.time.toString(),
-          category: 'Producerat',
-          value: (node.solar + node.export) * -1,
-        },
-        {
-          time: node.time.toString(),
-          category: 'Export',
-          value: node.export,
-        },
-      ]
-      return prev.concat(nodes)
-    },
-    [],
-  )
+  const data: influxdb.Series['values'] = hours.reduce((prev, node, i) => {
+    const nodes = [
+      {
+        time: node.time.toString(),
+        category: 'Export',
+        value: node.export * -1,
+      },
+      {
+        time: node.time.toString(),
+        category: 'Till Batteri',
+        value: node.charge,
+      },
+      {
+        time: node.time.toString(),
+        category: 'Egenanvändning',
+        value: node.solar - node.charge - Math.abs(node.export),
+      },
+
+      {
+        time: node.time.toString(),
+        category: 'Import',
+        value: node.import * -1,
+      },
+      {
+        time: node.time.toString(),
+        category: 'Från Batteri',
+        value: node.discharge * -1,
+      },
+      // {
+      //   time: node.time.toString(),
+      //   category: 'Producerat',
+      //   value: (node.solar + node.export) * -1,
+      // },
+    ]
+    return prev.concat(nodes)
+  }, [])
 
   let annotations: ColumnConfig['annotations'] = [
     {
@@ -238,7 +249,7 @@ export default function PowerUseBars(props: { height: number }) {
       start: [-1, 0],
       end: [24, 0],
       style: {
-        lineWidth: 2,
+        lineWidth: 1,
         stroke: 'black',
       },
     },
@@ -247,7 +258,7 @@ export default function PowerUseBars(props: { height: number }) {
   const priceNodes = [...priceState.nodes, ...priceState.today]
 
   annotations = annotations.concat(
-    masterInput.map((hour, i) => {
+    hours.map((hour, i) => {
       const { solar, load, time } = hour
 
       const priceNode = priceNodes.find((n) => {
@@ -329,9 +340,9 @@ export default function PowerUseBars(props: { height: number }) {
         case 'Producerat':
           return ColorProduction
         case 'Till Batteri':
-          return ColorBattery
+          return ColorBatteryCharge
         case 'Från Batteri':
-          return ColorBattery
+          return ColorBatteryDischarge
       }
     },
     theme,
@@ -352,9 +363,7 @@ export default function PowerUseBars(props: { height: number }) {
       },
       formatter: (datum) => {
         if (datum.category === 'Producerat') {
-          const node = masterInput.find(
-            (node) => node.time.toString() === datum.time,
-          )
+          const node = hours.find((node) => node.time.toString() === datum.time)
           if (node) {
             datum.value = node.solar
           }

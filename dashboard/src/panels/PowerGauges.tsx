@@ -1,3 +1,5 @@
+import { log } from 'console'
+
 import { useEffect, useMemo, useState } from 'react'
 
 import { Gauge, GaugeConfig } from '@ant-design/charts'
@@ -125,15 +127,11 @@ export function PowerLive(props: { height: number }) {
     )
   }, [modalOpen])
 
-  const batteryPower = batteryData.charge - batteryData.discharge
-  const generation = inverterPower + batteryPower * 0.95
-
-  let estimLoad = gridPower + generation
-  const loadQ = estimLoad / loadPower
-
-  // 10% difference
-  if (Math.abs(loadQ - 1) < 0.5 || Math.abs(batteryPower) > 1) {
-    estimLoad = loadPower
+  let estimLoad = loadPower
+  if (batteryData.charge > 0) {
+    estimLoad = loadPower - Number(batteryData.charge)
+  } else if (batteryData.discharge > 0) {
+    estimLoad = loadPower + Number(batteryData.discharge)
   }
 
   return (
@@ -160,7 +158,7 @@ export function PowerLive(props: { height: number }) {
           pv={solarPower}
           usage={Math.max(0, estimLoad)}
           grid={gridPower}
-          battery={batteryPower}
+          battery={batteryData.charge - batteryData.discharge}
         />
         <BatteryBar
           height={props.height * 0.8}
