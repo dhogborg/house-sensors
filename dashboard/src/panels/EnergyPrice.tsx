@@ -13,35 +13,36 @@ import { formatNumber } from 'src/lib/helpers'
 import { useDispatch, useSelector } from 'src/lib/store'
 
 import * as appConfig from 'src/lib/slices/config'
-import * as elpriset from 'src/lib/slices/elpriset'
 import * as influxdb from 'src/lib/slices/influxdb'
+import * as tibber from 'src/lib/slices/tibber'
 
 interface priceNode {
-  timeStart?: string
+  startsAt?: string
   category: string
   price: number
 }
 
 export default function PriceBars(props: { height: number }) {
   const dispatch = useDispatch()
-  const tomorrow = useSelector(elpriset.tomorrow)
-  const today = useSelector(elpriset.today)
+  const tomorrow = useSelector(tibber.tomorrow)
+  const today = useSelector(tibber.today)
   const includeFeesAndTax = useSelector(appConfig.selector).includeTaxes
   const pvValues = useSelector(influxdb.selectSeriesValues('totalPv', 0))
   const [solarHours, setSolarHours] = useState<{ [key: string]: boolean }>({})
 
   const [currentPrice, setCurrentPrice] = useState<{
-    timeStart?: string
-    price: number
-  }>({ price: 0 })
+    startsAt?: string
+    buyPrice: number
+    sellPrice: number
+  }>({ buyPrice: 0, sellPrice: 0 })
 
   useEffect(() => {
-    dispatch(elpriset.get())
+    dispatch(tibber.get())
 
     // fetch again at the top of the hour
     const minRemain = 60 - new Date().getMinutes()
     setTimeout(() => {
-      dispatch(elpriset.get())
+      dispatch(tibber.get())
     }, minRemain + 1 * 60 * 1000) // add a minute extra so we don't race to the new data
   }, [])
 
@@ -57,12 +58,13 @@ export default function PriceBars(props: { height: number }) {
   // UPdate the current price once every 10 seconds, if changed
   useEffect(() => {
     const update = () => {
-      const newPrice = elpriset.now(today.concat(tomorrow))
+      const newPrice = tibber.now(today.concat(tomorrow))
       setCurrentPrice((curr) => {
-        if (newPrice && curr.timeStart !== newPrice.timeStart) {
+        if (newPrice && curr.startsAt !== newPrice.startsAt) {
           return {
-            timeStart: newPrice.timeStart,
-            price: newPrice.price,
+            startsAt: newPrice.startsAt,
+            buyPrice: newPrice.total,
+            sellPrice: newPrice.energy,
           }
         }
         return curr
@@ -80,15 +82,15 @@ export default function PriceBars(props: { height: number }) {
   }, [today, tomorrow])
 
   const buyFeesAndTaxes = includeFeesAndTax
-    ? BUY_TRANSMISSION_FEE_CENTS + BUY_ADDED_TAX_CENTS + BUY_ADDED_CHARGES
-    : BUY_ADDED_CHARGES
+    ? BUY_TRANSMISSION_FEE_CENTS + BUY_ADDED_TAX_CENTS
+    : 0
   const sellFeesAndTaxes = includeFeesAndTax
     ? SELL_REDUCED_TAX_CENTS + SELL_GRID_BENEFIT_CENTS
     : 0
 
-  const { price } = currentPrice
-  const currentBuy = Math.round(100 * price * 1.25 + buyFeesAndTaxes)
-  const currentSell = Math.round(100 * price + sellFeesAndTaxes)
+  const { buyPrice, sellPrice } = currentPrice
+  const currentBuyCents = Math.round(100 * (buyPrice + buyFeesAndTaxes))
+  const currentSellCents = Math.round(100 * (sellPrice + sellFeesAndTaxes))
 
   const toggleFeesAndTaxes = (chart: unknown, event: { type: string }) => {
     switch (event.type) {
@@ -105,7 +107,7 @@ export default function PriceBars(props: { height: number }) {
       return {
         ...node,
         category: 'buy_price',
-        price: Math.round(node.price * 1.25 * 100 + buyFeesAndTaxes),
+        price: Math.round((node.total + buyFeesAndTaxes) * 100),
       }
     }),
   )
@@ -115,7 +117,7 @@ export default function PriceBars(props: { height: number }) {
       return {
         ...node,
         category: 'buy_price',
-        price: Math.round(node.price * 1.25 * 100 + buyFeesAndTaxes),
+        price: Math.round((node.total + buyFeesAndTaxes) * 100),
       }
     }),
   )
@@ -123,8 +125,8 @@ export default function PriceBars(props: { height: number }) {
   priceData = priceData.concat(
     today
       .map((node) => {
-        const d = new Date(node.timeStart)
-        let price = Math.round(node.price * 100 + sellFeesAndTaxes)
+        const d = new Date(node.startsAt)
+        let price = Math.round((node.energy + sellFeesAndTaxes) * 100)
         if (!solarHours[d.getHours()]) {
           price = 0
         }
@@ -140,8 +142,8 @@ export default function PriceBars(props: { height: number }) {
   priceData = priceData.concat(
     tomorrow
       .map((node) => {
-        const d = new Date(node.timeStart)
-        let price = Math.round(node.price * 100 + sellFeesAndTaxes)
+        const d = new Date(node.startsAt)
+        let price = Math.round((node.energy + sellFeesAndTaxes) * 100)
         if (!solarHours[d.getHours()]) {
           price = 0
         }
@@ -185,8 +187,8 @@ export default function PriceBars(props: { height: number }) {
 
   priceData.push({
     category: 'current_buy',
-    timeStart: currentPrice.timeStart,
-    price: currentBuy,
+    startsAt: currentPrice.startsAt,
+    price: currentBuyCents,
   })
 
   let annotations: ColumnConfig['annotations'] = []
@@ -253,7 +255,7 @@ export default function PriceBars(props: { height: number }) {
 
   annotations.push({
     type: 'text',
-    content: `${Math.round(currentBuy)} öre`,
+    content: `${Math.round(currentBuyCents)} öre`,
 
     position: (xScale, yScale) => {
       return [`50%`, `30%`]
@@ -278,7 +280,7 @@ export default function PriceBars(props: { height: number }) {
 
   annotations.push({
     type: 'text',
-    content: `Sälj: ${Math.round(currentSell)} öre`,
+    content: `Sälj: ${Math.round(currentSellCents)} öre`,
 
     position: (xScale, yScale) => {
       return [`50%`, `53%`]
@@ -305,7 +307,7 @@ export default function PriceBars(props: { height: number }) {
     data: priceData,
     isStack: false,
 
-    xField: 'timeStart',
+    xField: 'startsAt',
     yField: 'price',
     padding: 'auto',
 

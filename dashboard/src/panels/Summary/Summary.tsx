@@ -6,9 +6,9 @@ import { formatNumber } from 'src/lib/helpers'
 import { useDispatch, useSelector } from 'src/lib/store'
 
 import * as config from 'src/lib/slices/config'
-import * as elpriset from 'src/lib/slices/elpriset'
 import * as influxdb from 'src/lib/slices/influxdb'
 import * as mqtt from 'src/lib/slices/mqtt'
+import * as tibber from 'src/lib/slices/tibber'
 
 import * as lib from './Summary.lib'
 
@@ -31,7 +31,7 @@ export default function Summary(props: { height: number }) {
     influxdb.selectSeriesValues('heatpumpTotal', 0),
   )
 
-  const todayPrice = useSelector(elpriset.today)
+  const todayPrice = useSelector(tibber.today)
   const [altView, setAltView] = useState(false)
 
   useEffect(() => {

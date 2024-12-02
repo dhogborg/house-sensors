@@ -87,7 +87,7 @@ export function GridExport(gridMinutes: Node[]): number {
 
 export function TotalCostSEK(
   gridMinutes: Node[],
-  todayPrice: RootState['elpriset']['today'],
+  todayPrice: RootState['tibber']['today'],
   includeTax: boolean,
 ): number {
   const importMins = gridMinutes.filter((v) => v.value > 0)
@@ -96,7 +96,7 @@ export function TotalCostSEK(
 
 export function TotalGainSEK(
   gridMinutes: Node[],
-  todayPrice: RootState['elpriset']['today'],
+  todayPrice: RootState['tibber']['today'],
   includeTax: boolean,
 ): number {
   const exportMins = gridMinutes.filter((v) => v.value < 0)
@@ -105,12 +105,12 @@ export function TotalGainSEK(
 
 export function summedCost(
   gridMinutes: Node[],
-  todayPrice: RootState['elpriset']['today'],
+  todayPrice: RootState['tibber']['today'],
   includeTax: boolean,
 ): number {
   const gridCost = gridMinutes?.reduce((prev, curr, i) => {
     let priceNode = todayPrice.find((n) => {
-      const d1 = new Date(n.timeStart)
+      const d1 = new Date(n.startsAt)
       const d2 = new Date(curr.time)
       if (d1.getDate() !== d2.getDate()) return false
       if (d1.getHours() !== d2.getHours()) return false
@@ -125,8 +125,8 @@ export function summedCost(
 
     const price =
       curr.value > 0
-        ? (priceNode.price + 0.09) * 1.25 + fees
-        : priceNode.price + benefits
+        ? (priceNode.energy + 0.09) * 1.25 + fees
+        : priceNode.energy + benefits
 
     return prev + (curr.value / 1000) * price
   }, 0)
@@ -143,13 +143,13 @@ interface SelfUsageSpec {
 export function SelfUsage(
   pvMinutes: Node[],
   loadMinutes: Node[],
-  price: RootState['elpriset']['today'],
+  price: RootState['tibber']['today'],
   includeTax: boolean,
 ): SelfUsageSpec {
   const selfConsumedValue = pvMinutes?.reduce<SelfUsageSpec>(
     (total, pvMinute, i) => {
       let priceNode = price.find((n) => {
-        const d1 = new Date(n.timeStart)
+        const d1 = new Date(n.startsAt)
         const d2 = new Date(pvMinute.time)
         if (d1.getDate() !== d2.getDate()) return false
         if (d1.getHours() !== d2.getHours()) return false
@@ -168,8 +168,8 @@ export function SelfUsage(
         const remainPv = pvMinute.value - load.value
         const selfConsumedWm = remainPv > 0 ? load.value : pvMinute.value
         const kWh = selfConsumedWm / 1000 / 60
-        let potentialCost = kWh * (priceNode.price + 0.09) * 1.25
-        let cost = kWh * priceNode.price
+        let potentialCost = kWh * (priceNode.energy + 0.09) * 1.25
+        let cost = kWh * priceNode.energy
 
         if (includeTax) {
           potentialCost += kWh * buyTaxesPerkWh

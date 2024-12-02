@@ -1,3 +1,5 @@
+import { log } from 'console'
+
 import { useEffect, useMemo } from 'react'
 import { batch } from 'react-redux'
 
@@ -61,35 +63,35 @@ export default function PowerUseBars(props: { height: number }) {
     const load = () => {
       batch(() => {
         dispatch(
-          influxdb.getQuery({
+          influxdb.getFluxQuery({
             id: 'gridImport',
-            db: 'energy',
-            query: `SELECT mean("power") AS "mean_power" 
-            FROM "energy"."autogen"."grid" 
-            WHERE time > now() - 23h AND "phase"='combined' AND power > 0
-            GROUP BY time(${Grain}) FILL(0)`,
+            category: 'import',
+            query: `from(bucket: "energy/autogen")
+                      |> range(start: -23h)
+                      |> filter(fn: (r) => r._measurement == "grid")
+                      |> filter(fn: (r) => r.phase == "combined")
+                      |> filter(fn: (r) => r._measurement == "grid" and r._field == "power")
+                      |> filter(fn: (r) => r._value > 0)
+                      |> aggregateWindow(every: 10s, createEmpty: true, fn: mean)
+                      |> fill(value: 0.0)
+                      |> aggregateWindow(every: 1h, createEmpty: true, fn: mean)`,
           }),
         )
         dispatch(
-          influxdb.getQuery({
+          influxdb.getFluxQuery({
             id: 'gridExport',
-            db: 'energy',
-            query: `SELECT mean("power") AS "mean_power" 
-            FROM "energy"."autogen"."grid" 
-            WHERE time > now() - 23h AND "phase"='combined' AND power < 0
-            GROUP BY time(${Grain}) FILL(0)`,
+            category: 'import',
+            query: `from(bucket: "energy/autogen")
+                      |> range(start: -23h)
+                      |> filter(fn: (r) => r._measurement == "grid")
+                      |> filter(fn: (r) => r.phase == "combined")
+                      |> filter(fn: (r) => r._measurement == "grid" and r._field == "power")
+                      |> filter(fn: (r) => r._value < 0)
+                      |> aggregateWindow(every: 10s, createEmpty: true, fn: mean)
+                      |> fill(value: 0.0)
+                      |> aggregateWindow(every: 1h, createEmpty: true, fn: mean)`,
           }),
         )
-        // dispatch(
-        //   influxdb.getQuery({
-        //     id: 'totalLoad',
-        //     db: 'energy',
-        //     query: `SELECT mean("power") AS "mean_power"
-        //     FROM "energy"."autogen"."load"
-        //     WHERE time > now() - 23h AND "phase"='combined'
-        //     GROUP BY time(${Grain}) FILL(null)`,
-        //   }),
-        // )
         dispatch(
           influxdb.getQuery({
             id: 'charge',
@@ -148,12 +150,12 @@ export default function PowerUseBars(props: { height: number }) {
       return {
         time: new Date(loadNode.time),
 
-        import: importNode?.value / 1000 ?? 0,
-        export: exportNode?.value / 1000 ?? 0,
-        load: loadNode?.value / 1000 ?? 0,
-        solar: pvNode?.value / 1000 ?? 0,
-        charge: chargeNode?.value / 1000 ?? 0,
-        discharge: dischargeNode?.value / 1000 ?? 0,
+        import: (importNode?.value ?? 0) / 1000,
+        export: (exportNode?.value ?? 0) / 1000,
+        load: (loadNode?.value ?? 0) / 1000,
+        solar: (pvNode?.value ?? 0) / 1000,
+        charge: (chargeNode?.value ?? 0) / 1000,
+        discharge: (dischargeNode?.value ?? 0) / 1000,
       }
     })
 
